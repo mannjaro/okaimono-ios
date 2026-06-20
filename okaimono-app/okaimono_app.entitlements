@@ -1,14 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- CloudKit 移行時は Xcode の Signing & Capabilities から iCloud を追加すること。 -->
+<!-- Xcode が以下のキーを自動で追加する（手動編集不要）:              -->
+<!--   aps-environment: development                                    -->
+<!--   com.apple.developer.icloud-container-identifiers:              -->
+<!--     iCloud.mannjaro.okaimono-app                                 -->
+<!--   com.apple.developer.icloud-services: CloudKit                  -->
 <plist version="1.0">
-<dict>
-	<key>aps-environment</key>
-	<string>development</string>
-	<key>com.apple.developer.icloud-container-identifiers</key>
-	<array/>
-	<key>com.apple.developer.icloud-services</key>
-	<array>
-		<string>CloudKit</string>
-	</array>
-</dict>
+<dict/>
 </plist>

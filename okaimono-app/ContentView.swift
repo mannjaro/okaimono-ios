@@ -6,56 +6,78 @@
 //
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @Environment(\.managedObjectContext) private var viewContext
+
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \ShoppingList.createdAt, ascending: false)],
+        animation: .default
+    )
+    private var lists: FetchedResults<ShoppingList>
+
+    @State private var isAddingList = false
+    @State private var newListName = ""
 
     var body: some View {
-        NavigationSplitView {
+        NavigationStack {
             List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+                ForEach(lists) { list in
+                    NavigationLink(destination: ShoppingListDetailView(list: list)) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(list.name ?? "未名リスト")
+                                .font(.headline)
+                            let unchecked = list.uncheckedCount
+                            let total = list.itemsArray.count
+                            Text(total == 0 ? "商品なし" : "残り \(unchecked)/\(total) 品")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
-                .onDelete(perform: deleteItems)
+                .onDelete(perform: deleteLists)
             }
+            .navigationTitle("買い物リスト")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     EditButton()
                 }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { isAddingList = true } label: {
+                        Label("リスト追加", systemImage: "plus")
                     }
                 }
             }
-        } detail: {
-            Text("Select an item")
-        }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+            .alert("新しいリスト", isPresented: $isAddingList) {
+                TextField("リスト名", text: $newListName)
+                Button("追加") { addList() }
+                Button("キャンセル", role: .cancel) { newListName = "" }
             }
+        }
+    }
+
+    private func addList() {
+        guard !newListName.isEmpty else { return }
+        withAnimation {
+            let list = ShoppingList(context: viewContext)
+            list.id = UUID()
+            list.name = newListName
+            list.createdAt = Date()
+            try? viewContext.save()
+            newListName = ""
+        }
+    }
+
+    private func deleteLists(offsets: IndexSet) {
+        withAnimation {
+            offsets.map { lists[$0] }.forEach(viewContext.delete)
+            try? viewContext.save()
         }
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }
