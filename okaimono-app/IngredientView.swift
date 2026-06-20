@@ -8,9 +8,11 @@ struct IngredientView: View {
 
     @FetchRequest private var ingredients: FetchedResults<Ingredient>
 
-    @State private var isAdding = false
     @State private var newName = ""
     @State private var newQuantity = ""
+    @FocusState private var focusedField: Field?
+
+    private enum Field { case name, quantity }
 
     init(menu: MenuItem) {
         self.menu = menu
@@ -28,6 +30,24 @@ struct IngredientView: View {
                     IngredientRow(ingredient: ingredient) { toggleCheck(ingredient) }
                 }
                 .onDelete(perform: deleteIngredients)
+
+                HStack {
+                    TextField("材料を追加", text: $newName)
+                        .focused($focusedField, equals: .name)
+                        .onSubmit {
+                            if newName.isEmpty { return }
+                            focusedField = .quantity
+                        }
+                    TextField("量", text: $newQuantity)
+                        .focused($focusedField, equals: .quantity)
+                        .frame(width: 64)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                        .onSubmit {
+                            addIngredient()
+                            focusedField = .name
+                        }
+                }
             }
             .navigationTitle(menu.name ?? "材料")
             .navigationBarTitleDisplayMode(.inline)
@@ -36,16 +56,8 @@ struct IngredientView: View {
                     Button("閉じる") { dismiss() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { isAdding = true } label: {
-                        Label("追加", systemImage: "plus")
-                    }
+                    EditButton()
                 }
-            }
-            .alert("材料を追加", isPresented: $isAdding) {
-                TextField("材料名", text: $newName)
-                TextField("量（任意）", text: $newQuantity)
-                Button("追加") { addIngredient() }
-                Button("キャンセル", role: .cancel) { resetForm() }
             }
         }
     }
@@ -55,24 +67,22 @@ struct IngredientView: View {
         try? viewContext.save()
     }
 
-    private func resetForm() {
-        newName = ""
-        newQuantity = ""
-    }
-
     private func addIngredient() {
         guard !newName.isEmpty else { return }
+        let name = newName
+        let qty = newQuantity.isEmpty ? nil : newQuantity
+        newName = ""
+        newQuantity = ""
         let now = Date()
         withAnimation {
             let item = Ingredient(context: viewContext)
             item.id = UUID()
-            item.name = newName
-            item.quantity = newQuantity.isEmpty ? nil : newQuantity
+            item.name = name
+            item.quantity = qty
             item.isChecked = false
             item.createdAt = now
             item.menu = menu
             try? viewContext.save()
-            resetForm()
         }
     }
 

@@ -7,7 +7,6 @@ struct ShoppingListDetailView: View {
 
     @FetchRequest private var items: FetchedResults<MenuItem>
 
-    @State private var isAddingItem = false
     @State private var newItemName = ""
     @State private var selectedMenu: MenuItem?
 
@@ -38,20 +37,10 @@ struct ShoppingListDetailView: View {
                     }
                 }
             }
+            TextField("献立を追加", text: $newItemName)
+                .onSubmit { addMenu() }
         }
         .navigationTitle(list.name ?? "リスト")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button { isAddingItem = true } label: {
-                    Label("追加", systemImage: "plus")
-                }
-            }
-        }
-        .alert("献立を追加", isPresented: $isAddingItem) {
-            TextField("献立名", text: $newItemName)
-            Button("追加") { addMenu() }
-            Button("キャンセル", role: .cancel) { newItemName = "" }
-        }
         .sheet(item: $selectedMenu) { menu in
             IngredientView(menu: menu)
         }
@@ -59,14 +48,15 @@ struct ShoppingListDetailView: View {
 
     private func addMenu() {
         guard !newItemName.isEmpty else { return }
+        let name = newItemName
+        newItemName = ""
         withAnimation {
             let item = MenuItem(context: viewContext)
             item.id = UUID()
-            item.name = newItemName
+            item.name = name
             item.createdAt = Date()
             item.list = list
             try? viewContext.save()
-            newItemName = ""
         }
     }
 
