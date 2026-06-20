@@ -9,6 +9,7 @@ struct ShoppingListDetailView: View {
 
     @State private var isAddingItem = false
     @State private var newItemName = ""
+    @State private var selectedMenu: MenuItem?
 
     init(list: ShoppingList) {
         self.list = list
@@ -22,8 +23,19 @@ struct ShoppingListDetailView: View {
     var body: some View {
         List {
             ForEach(items) { menu in
-                NavigationLink(destination: IngredientView(menu: menu)) {
-                    Text(menu.name ?? "")
+                Button {
+                    selectedMenu = menu
+                } label: {
+                    HStack {
+                        Text(menu.name ?? "")
+                            .foregroundColor(.primary)
+                        Spacer()
+                        if menu.uncheckedCount > 0 {
+                            Text("\(menu.uncheckedCount)品")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
             }
         }
@@ -35,10 +47,13 @@ struct ShoppingListDetailView: View {
                 }
             }
         }
-        .alert("商品を追加", isPresented: $isAddingItem) {
-            TextField("商品名", text: $newItemName)
+        .alert("献立を追加", isPresented: $isAddingItem) {
+            TextField("献立名", text: $newItemName)
             Button("追加") { addMenu() }
             Button("キャンセル", role: .cancel) { newItemName = "" }
+        }
+        .sheet(item: $selectedMenu) { menu in
+            IngredientView(menu: menu)
         }
     }
 

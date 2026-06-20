@@ -19,7 +19,7 @@ public class MenuItem: NSManagedObject {
     }
 
     var uncheckedCount: Int {
-        ingredientsArray.filter { !$0.isChecked }.count
+        (ingredients as? Set<Ingredient>)?.filter { !$0.isChecked }.count ?? 0
     }
 }
 
