@@ -28,11 +28,6 @@ struct ContentView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(list.name ?? "未名リスト")
                                 .font(.headline)
-                            let unchecked = list.uncheckedCount
-                            let total = list.itemsArray.count
-                            Text(total == 0 ? "商品なし" : "残り \(unchecked)/\(total) 品")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
                         }
                     }
                 }

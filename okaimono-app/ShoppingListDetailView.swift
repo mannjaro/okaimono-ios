@@ -5,7 +5,7 @@ struct ShoppingListDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
     let list: ShoppingList
 
-    @FetchRequest private var items: FetchedResults<ShoppingItem>
+    @FetchRequest private var items: FetchedResults<MenuItem>
 
     @State private var isAddingItem = false
     @State private var newItemName = ""
@@ -13,7 +13,7 @@ struct ShoppingListDetailView: View {
     init(list: ShoppingList) {
         self.list = list
         _items = FetchRequest(
-            sortDescriptors: [NSSortDescriptor(keyPath: \ShoppingItem.createdAt, ascending: true)],
+            sortDescriptors: [NSSortDescriptor(keyPath: \MenuItem.createdAt, ascending: true)],
             predicate: NSPredicate(format: "list == %@", list),
             animation: .default
         )
@@ -21,31 +21,11 @@ struct ShoppingListDetailView: View {
 
     var body: some View {
         List {
-            ForEach(items) { item in
-                HStack {
-                    Button {
-                        item.isChecked.toggle()
-                        try? viewContext.save()
-                    } label: {
-                        Image(systemName: item.isChecked ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(item.isChecked ? .green : .secondary)
-                    }
-                    .buttonStyle(.plain)
-
-                    Text(item.name ?? "")
-                        .strikethrough(item.isChecked)
-                        .foregroundStyle(item.isChecked ? .secondary : .primary)
-
-                    Spacer()
-
-                    if item.quantity > 1 {
-                        Text("×\(item.quantity)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+            ForEach(items) { menu in
+                NavigationLink(destination: IngredientView(menu: menu)) {
+                    Text(menu.name ?? "")
                 }
             }
-            .onDelete(perform: deleteItems)
         }
         .navigationTitle(list.name ?? "リスト")
         .toolbar {
@@ -57,19 +37,17 @@ struct ShoppingListDetailView: View {
         }
         .alert("商品を追加", isPresented: $isAddingItem) {
             TextField("商品名", text: $newItemName)
-            Button("追加") { addItem() }
+            Button("追加") { addMenu() }
             Button("キャンセル", role: .cancel) { newItemName = "" }
         }
     }
 
-    private func addItem() {
+    private func addMenu() {
         guard !newItemName.isEmpty else { return }
         withAnimation {
-            let item = ShoppingItem(context: viewContext)
+            let item = MenuItem(context: viewContext)
             item.id = UUID()
             item.name = newItemName
-            item.quantity = 1
-            item.isChecked = false
             item.createdAt = Date()
             item.list = list
             try? viewContext.save()

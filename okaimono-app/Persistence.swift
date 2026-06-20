@@ -20,13 +20,20 @@ struct PersistenceController {
             list.id = UUID()
             list.name = "買い物リスト \(i)"
             list.createdAt = Date()
-            let item = ShoppingItem(context: context)
-            item.id = UUID()
-            item.name = "サンプル商品"
-            item.quantity = 1
-            item.isChecked = false
-            item.createdAt = Date()
-            item.list = list
+            
+            let menu = MenuItem(context: context)
+            menu.id = UUID()
+            menu.name = "献立 \(i)"
+            menu.createdAt = Date()
+            menu.list = list
+            
+            let ingredient = Ingredient(context: context)
+            ingredient.id = UUID()
+            ingredient.name = "サンプル"
+            ingredient.quantity = "100g"
+            ingredient.isChecked = false
+            ingredient.createdAt = Date()
+            ingredient.menu = menu
         }
         try? context.save()
         return result

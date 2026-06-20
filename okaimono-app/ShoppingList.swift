@@ -10,15 +10,15 @@ public class ShoppingList: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var name: String?
     @NSManaged public var createdAt: Date?
-    @NSManaged public var items: NSSet?
+    @NSManaged public var menus: NSSet?
 
-    var itemsArray: [ShoppingItem] {
-        let set = items as? Set<ShoppingItem> ?? []
+    var menusArray: [MenuItem] {
+        let set = menus as? Set<MenuItem> ?? []
         return set.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
     }
 
-    var uncheckedCount: Int {
-        itemsArray.filter { !$0.isChecked }.count
+    var totalUncheckedCount: Int {
+        menusArray.reduce(0) { $0 + $1.uncheckedCount }
     }
 }
 
