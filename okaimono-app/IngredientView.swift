@@ -25,20 +25,7 @@ struct IngredientView: View {
         NavigationStack {
             List {
                 ForEach(ingredients) { ingredient in
-                    HStack {
-                        Image(systemName: ingredient.isChecked ? "checkmark.circle.fill" : "circle")
-                            .foregroundColor(ingredient.isChecked ? .green : .secondary)
-                            .onTapGesture { toggleCheck(ingredient) }
-                        Text(ingredient.name ?? "")
-                            .strikethrough(ingredient.isChecked)
-                            .foregroundColor(ingredient.isChecked ? .secondary : .primary)
-                        Spacer()
-                        if let qty = ingredient.quantity, !qty.isEmpty {
-                            Text(qty)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
+                    IngredientRow(ingredient: ingredient) { toggleCheck(ingredient) }
                 }
                 .onDelete(perform: deleteIngredients)
             }
@@ -93,6 +80,28 @@ struct IngredientView: View {
         withAnimation {
             offsets.map { ingredients[$0] }.forEach(viewContext.delete)
             try? viewContext.save()
+        }
+    }
+}
+
+private struct IngredientRow: View {
+    @ObservedObject var ingredient: Ingredient
+    let onToggle: () -> Void
+
+    var body: some View {
+        HStack {
+            Image(systemName: ingredient.isChecked ? "checkmark.circle.fill" : "circle")
+                .foregroundColor(ingredient.isChecked ? .green : .secondary)
+                .onTapGesture { onToggle() }
+            Text(ingredient.name ?? "")
+                .strikethrough(ingredient.isChecked)
+                .foregroundColor(ingredient.isChecked ? .secondary : .primary)
+            Spacer()
+            if let qty = ingredient.quantity, !qty.isEmpty {
+                Text(qty)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
     }
 }
