@@ -3,15 +3,15 @@ import CoreData
 
 struct ShoppingListDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
+
     let list: ShoppingList
 
     @FetchRequest private var items: FetchedResults<MenuItem>
 
     @State private var newItemName = ""
     @State private var selectedMenu: MenuItem?
-    
-    @State private var editingMenu: MenuItem?       // 編集対象のMenu
-    @State private var editingName: String = ""     // 編集中のテキスト
+    @State private var editingMenu: MenuItem?
+    @State private var editingName = ""
 
     init(list: ShoppingList) {
         self.list = list
@@ -25,68 +25,105 @@ struct ShoppingListDetailView: View {
     var body: some View {
         List {
             ForEach(items) { menu in
-                Button {
-                    selectedMenu = menu
-                } label: {
-                    HStack {
-                        Text(menu.name ?? "")
-                            .foregroundColor(.primary)
-                        Spacer()
-                        if menu.uncheckedCount > 0 {
-                            Text("\(menu.uncheckedCount)品")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .swipeActions(edge: .leading) {
-                    Button("Edit") {
-                        editingMenu = menu
-                        editingName = menu.name ?? ""
-                    }.tint(.blue)
-                }
+                MenuRow(
+                    menu: menu,
+                    isEditing: editingMenu == menu,
+                    editingName: $editingName,
+                    onBeginEditing: { beginEditing(menu) },
+                    onCommit: commitEditing,
+                    onShowIngredients: { selectedMenu = menu }
+                )
             }
             .onDelete(perform: deleteItems)
-            
+
             TextField("献立を追加", text: $newItemName)
-                .onSubmit { addMenu() }
+                .onSubmit(addMenu)
         }
         .navigationTitle(list.name ?? "リスト")
         .sheet(item: $selectedMenu) { menu in
             IngredientView(menu: menu)
         }
-        .sheet(item: $editingMenu) { menu in
-            // Editing view
-            VStack {
-                TextField("Name", text: $editingName)
-                Button("Save") {
-                    menu.name = editingName
-                    try? viewContext.save()
-                    editingMenu = nil       // Close
-                }
-            }
-            .padding()
-        }
     }
 
+    // MARK: - Editing
+
+    private func beginEditing(_ menu: MenuItem) {
+        editingMenu = menu
+        editingName = menu.name ?? ""
+    }
+
+    private func commitEditing() {
+        editingMenu?.name = editingName
+        editingMenu = nil
+        save()
+    }
+
+    // MARK: - CRUD
+
+    /// ※ 元コードに addMenu / deleteItems が無かったため一般的な実装で補完しています。
+    ///   既存の実装があるならそちらを優先してください。
     private func addMenu() {
-        guard !newItemName.isEmpty else { return }
-        let name = newItemName
+        let name = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+
+        let menu = MenuItem(context: viewContext)
+        menu.name = name
+        menu.createdAt = Date()
+        menu.list = list
+
         newItemName = ""
-        withAnimation {
-            let item = MenuItem(context: viewContext)
-            item.id = UUID()
-            item.name = name
-            item.createdAt = Date()
-            item.list = list
-            try? viewContext.save()
-        }
+        save()
     }
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            offsets.map { items[$0] }.forEach(viewContext.delete)
-            try? viewContext.save()
+    private func deleteItems(at offsets: IndexSet) {
+        offsets.map { items[$0] }.forEach(viewContext.delete)
+        save()
+    }
+
+    private func save() {
+        guard viewContext.hasChanges else { return }
+        do {
+            try viewContext.save()
+        } catch {
+            // 本番ではログ送信やユーザーへのエラー表示を検討
+            print("Core Data save error: \(error)")
+        }
+    }
+}
+
+// MARK: - Row
+
+private struct MenuRow: View {
+    @ObservedObject var menu: MenuItem
+    let isEditing: Bool
+    @Binding var editingName: String
+    let onBeginEditing: () -> Void
+    let onCommit: () -> Void
+    let onShowIngredients: () -> Void
+
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        HStack {
+            if isEditing {
+                TextField("献立名", text: $editingName)
+                    .focused($isFocused)
+                    .onSubmit(onCommit)
+                    .onAppear { isFocused = true }
+            } else {
+                Text(menu.name ?? "")
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: onBeginEditing)
+            }
+            
+            Button {
+                onShowIngredients()
+            } label: {
+                Image(systemName: "pencil.line")
+                    .frame(width: 24, height: 24)
+            }
         }
     }
 }
