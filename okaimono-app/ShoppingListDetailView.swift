@@ -23,25 +23,35 @@ struct ShoppingListDetailView: View {
     }
 
     var body: some View {
-        List {
-            ForEach(items) { menu in
-                MenuRow(
-                    menu: menu,
-                    isEditing: editingMenu == menu,
-                    editingName: $editingName,
-                    onBeginEditing: { beginEditing(menu) },
-                    onCommit: commitEditing,
-                    onShowIngredients: { selectedMenu = menu }
-                )
+        ZStack {
+            List {
+                ForEach(items) { menu in
+                    MenuRow(
+                        menu: menu,
+                        isEditing: editingMenu == menu,
+                        editingName: $editingName,
+                        onBeginEditing: { beginEditing(menu) },
+                        onCommit: commitEditing,
+                        onShowIngredients: { selectedMenu = menu }
+                    )
+                }
+                .onDelete(perform: deleteItems)
+                
+                TextField("献立を追加", text: $newItemName)
+                    .onSubmit(addMenu)
             }
-            .onDelete(perform: deleteItems)
-
-            TextField("献立を追加", text: $newItemName)
-                .onSubmit(addMenu)
-        }
-        .navigationTitle(list.name ?? "リスト")
-        .sheet(item: $selectedMenu) { menu in
-            IngredientView(menu: menu)
+            .navigationTitle(list.name ?? "リスト")
+            .sheet(item: $selectedMenu) { menu in
+                IngredientView(menu: menu)
+            }
+            VStack {
+                Spacer()
+                NavigationLink(destination: CartView(list: list)) {
+                    Image(systemName: "cart.fill")
+                }
+                .buttonStyle(.glassProminent)
+                .padding()
+            }
         }
     }
 

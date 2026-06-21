@@ -27,13 +27,15 @@ struct PersistenceController {
             menu.createdAt = Date()
             menu.list = list
             
-            let ingredient = Ingredient(context: context)
-            ingredient.id = UUID()
-            ingredient.name = "サンプル"
-            ingredient.quantity = "100g"
-            ingredient.isChecked = false
-            ingredient.createdAt = Date()
-            ingredient.menu = menu
+            for i in 1...2 {
+                let ingredient = Ingredient(context: context)
+                ingredient.id = UUID()
+                ingredient.name = "サンプル \(i)"
+                ingredient.quantity = "100g"
+                ingredient.isChecked = false
+                ingredient.createdAt = Date()
+                ingredient.menu = menu
+            }
         }
         try? context.save()
         return result
