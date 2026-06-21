@@ -9,6 +9,9 @@ struct ShoppingListDetailView: View {
 
     @State private var newItemName = ""
     @State private var selectedMenu: MenuItem?
+    
+    @State private var editingMenu: MenuItem?       // 編集対象のMenu
+    @State private var editingName: String = ""     // 編集中のテキスト
 
     init(list: ShoppingList) {
         self.list = list
@@ -36,13 +39,33 @@ struct ShoppingListDetailView: View {
                         }
                     }
                 }
+                .swipeActions(edge: .leading) {
+                    Button("Edit") {
+                        editingMenu = menu
+                        editingName = menu.name ?? ""
+                    }.tint(.blue)
+                }
             }
+            .onDelete(perform: deleteItems)
+            
             TextField("献立を追加", text: $newItemName)
                 .onSubmit { addMenu() }
         }
         .navigationTitle(list.name ?? "リスト")
         .sheet(item: $selectedMenu) { menu in
             IngredientView(menu: menu)
+        }
+        .sheet(item: $editingMenu) { menu in
+            // Editing view
+            VStack {
+                TextField("Name", text: $editingName)
+                Button("Save") {
+                    menu.name = editingName
+                    try? viewContext.save()
+                    editingMenu = nil       // Close
+                }
+            }
+            .padding()
         }
     }
 
