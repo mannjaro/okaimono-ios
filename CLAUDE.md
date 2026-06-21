@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Ground rule
+
+開発者はSwiftの初心者であり、現在このアプリの開発を通じて学習を行っています。
+そのため、あなたは具体的な実装は行わず、方針だけ示してください。
+ただし、開発者から明示的に実装を求められた場合は、その限りではありません。
+
 ## Project overview
 
 **おかいものアプリ** — an iOS shopping list app built with SwiftUI and Core Data. The app lets users create named shopping lists, add menu items (献立) to each list, and manage ingredients (材料) per menu item with check-off support.
