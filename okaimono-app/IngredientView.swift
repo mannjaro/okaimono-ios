@@ -64,7 +64,7 @@ struct IngredientView: View {
 
     private func toggleCheck(_ ingredient: Ingredient) {
         ingredient.isChecked.toggle()
-        try? viewContext.save()
+        viewContext.saveIfNeeded()
     }
 
     private func addIngredient() {
@@ -82,14 +82,14 @@ struct IngredientView: View {
             item.isChecked = false
             item.createdAt = now
             item.menu = menu
-            try? viewContext.save()
+            viewContext.saveIfNeeded()
         }
     }
 
     private func deleteIngredients(offsets: IndexSet) {
         withAnimation {
             offsets.map { ingredients[$0] }.forEach(viewContext.delete)
-            try? viewContext.save()
+            viewContext.saveIfNeeded()
         }
     }
 }

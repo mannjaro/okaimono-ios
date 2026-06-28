@@ -65,7 +65,7 @@ struct ShoppingListDetailView: View {
     private func commitEditing() {
         editingMenu?.name = editingName
         editingMenu = nil
-        save()
+        viewContext.saveIfNeeded()
     }
 
     // MARK: - CRUD
@@ -83,22 +83,12 @@ struct ShoppingListDetailView: View {
         menu.list = list
 
         newItemName = ""
-        save()
+        viewContext.saveIfNeeded()
     }
 
     private func deleteItems(at offsets: IndexSet) {
         offsets.map { items[$0] }.forEach(viewContext.delete)
-        save()
-    }
-
-    private func save() {
-        guard viewContext.hasChanges else { return }
-        do {
-            try viewContext.save()
-        } catch {
-            // 本番ではログ送信やユーザーへのエラー表示を検討
-            print("Core Data save error: \(error)")
-        }
+        viewContext.saveIfNeeded()
     }
 }
 

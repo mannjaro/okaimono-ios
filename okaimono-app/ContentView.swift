@@ -59,7 +59,7 @@ struct ContentView: View {
             list.id = UUID()
             list.name = newListName
             list.createdAt = Date()
-            try? viewContext.save()
+            viewContext.saveIfNeeded()
             newListName = ""
         }
     }
@@ -67,7 +67,7 @@ struct ContentView: View {
     private func deleteLists(offsets: IndexSet) {
         withAnimation {
             offsets.map { lists[$0] }.forEach(viewContext.delete)
-            try? viewContext.save()
+            viewContext.saveIfNeeded()
         }
     }
 }
