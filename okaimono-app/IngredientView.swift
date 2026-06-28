@@ -88,8 +88,7 @@ struct IngredientView: View {
 
     private func deleteIngredients(offsets: IndexSet) {
         withAnimation {
-            offsets.map { ingredients[$0] }.forEach(viewContext.delete)
-            viewContext.saveIfNeeded()
+            viewContext.delete(ingredients, at: offsets)
         }
     }
 }

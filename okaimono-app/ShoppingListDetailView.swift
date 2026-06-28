@@ -87,8 +87,7 @@ struct ShoppingListDetailView: View {
     }
 
     private func deleteItems(at offsets: IndexSet) {
-        offsets.map { items[$0] }.forEach(viewContext.delete)
-        viewContext.saveIfNeeded()
+        viewContext.delete(items, at: offsets)
     }
 }
 
