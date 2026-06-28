@@ -20,6 +20,11 @@ public class ShoppingList: NSManagedObject {
     var totalUncheckedCount: Int {
         menusArray.reduce(0) { $0 + $1.uncheckedCount }
     }
+    public override func awakeFromInsert() {
+        super.awakeFromInsert()
+        setupDefaults()
+    }
 }
 
 extension ShoppingList: Identifiable {}
+extension ShoppingList: CoreDataEntity {}

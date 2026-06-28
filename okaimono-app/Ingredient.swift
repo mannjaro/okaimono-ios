@@ -13,6 +13,12 @@ public class Ingredient: NSManagedObject {
     @NSManaged public var isChecked: Bool
     @NSManaged public var createdAt: Date?
     @NSManaged public var menu: MenuItem?
+    
+    public override func awakeFromInsert() {
+        super.awakeFromInsert()
+        setupDefaults()
+    }
 }
 
 extension Ingredient: Identifiable {}
+extension Ingredient: CoreDataEntity {}

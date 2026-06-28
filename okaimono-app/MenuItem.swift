@@ -21,6 +21,11 @@ public class MenuItem: NSManagedObject {
     var uncheckedCount: Int {
         (ingredients as? Set<Ingredient>)?.filter { !$0.isChecked }.count ?? 0
     }
+    public override func awakeFromInsert() {
+        super.awakeFromInsert()
+        setupDefaults()
+    }
 }
 
 extension MenuItem: Identifiable {}
+extension MenuItem: CoreDataEntity {}

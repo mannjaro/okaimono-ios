@@ -56,9 +56,7 @@ struct ContentView: View {
         guard !newListName.isEmpty else { return }
         withAnimation {
             let list = ShoppingList(context: viewContext)
-            list.id = UUID()
             list.name = newListName
-            list.createdAt = Date()
             viewContext.saveIfNeeded()
             newListName = ""
         }

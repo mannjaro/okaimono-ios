@@ -73,14 +73,11 @@ struct IngredientView: View {
         let qty = newQuantity.isEmpty ? nil : newQuantity
         newName = ""
         newQuantity = ""
-        let now = Date()
         withAnimation {
             let item = Ingredient(context: viewContext)
-            item.id = UUID()
             item.name = name
             item.quantity = qty
             item.isChecked = false
-            item.createdAt = now
             item.menu = menu
             viewContext.saveIfNeeded()
         }
