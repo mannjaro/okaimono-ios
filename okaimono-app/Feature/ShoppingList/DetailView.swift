@@ -1,7 +1,7 @@
 import SwiftUI
 import CoreData
 
-struct ShoppingListDetailView: View {
+struct DetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     let list: ShoppingList
@@ -23,7 +23,7 @@ struct ShoppingListDetailView: View {
 
 #Preview {
     NavigationStack {
-        ShoppingListDetailView(list: {
+        DetailView(list: {
             let context = PersistenceController.preview.container.viewContext
             return try! context.fetch(ShoppingList.fetchRequest()).first!
         }())

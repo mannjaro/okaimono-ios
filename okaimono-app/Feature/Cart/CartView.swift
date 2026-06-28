@@ -1,10 +1,3 @@
-//
-//  CartView.swift
-//  okaimono-app
-//
-//  Created by Takayuki Zukawa on 2026/06/21.
-//
-
 import SwiftUI
 import CoreData
 

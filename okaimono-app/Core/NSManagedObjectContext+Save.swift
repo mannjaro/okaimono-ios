@@ -1,10 +1,3 @@
-//
-//  NSManagedObjectContext+Save.swift
-//  okaimono-app
-//
-//  Created by Takayuki Zukawa on 2026/06/28.
-//
-
 import SwiftUI
 import CoreData
 

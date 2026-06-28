@@ -1,14 +1,7 @@
-//
-//  ContentView.swift
-//  okaimono-app
-//
-//  Created by Takayuki Zukawa on 2026/06/20.
-//
-
 import SwiftUI
 import CoreData
 
-struct ContentView: View {
+struct ShoppingListView: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     @FetchRequest(
@@ -24,7 +17,7 @@ struct ContentView: View {
         NavigationStack {
             List {
                 ForEach(lists) { list in
-                    NavigationLink(destination: ShoppingListDetailView(list: list)) {
+                    NavigationLink(destination: DetailView(list: list)) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(list.name ?? "Unnamed list")
                                 .font(.headline)
@@ -70,6 +63,6 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ShoppingListView()
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }
