@@ -37,10 +37,10 @@ struct ShoppingListDetailView: View {
                 }
                 .onDelete(perform: deleteItems)
                 
-                TextField("献立を追加", text: $newItemName)
+                TextField("Add menu", text: $newItemName)
                     .onSubmit(addMenu)
             }
-            .navigationTitle(list.name ?? "リスト")
+            .navigationTitle(list.name ?? "List")
             .sheet(item: $selectedMenu) { menu in
                 IngredientView(menu: menu)
             }
@@ -106,7 +106,7 @@ private struct MenuRow: View {
     var body: some View {
         HStack {
             if isEditing {
-                TextField("献立名", text: $editingName)
+                TextField("Menu name", text: $editingName)
                     .focused($isFocused)
                     .onSubmit(onCommit)
                     .onAppear { isFocused = true }

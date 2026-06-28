@@ -32,7 +32,7 @@ struct IngredientView: View {
                 .onDelete(perform: deleteIngredients)
 
                 HStack {
-                    TextField("材料を追加", text: $newName)
+                    TextField("Add ingredient", text: $newName)
                         .focused($focusedField, equals: .name)
                         .onSubmit {
                             if newName.isEmpty { return }
@@ -49,11 +49,11 @@ struct IngredientView: View {
                         }
                 }
             }
-            .navigationTitle(menu.name ?? "材料")
+            .navigationTitle(menu.name ?? "Ingredient")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("閉じる") { dismiss() }
+                    Button("Close") { dismiss() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     EditButton()

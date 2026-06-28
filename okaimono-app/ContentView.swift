@@ -26,28 +26,28 @@ struct ContentView: View {
                 ForEach(lists) { list in
                     NavigationLink(destination: ShoppingListDetailView(list: list)) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(list.name ?? "未名リスト")
+                            Text(list.name ?? "Unnamed list")
                                 .font(.headline)
                         }
                     }
                 }
                 .onDelete(perform: deleteLists)
             }
-            .navigationTitle("買い物リスト")
+            .navigationTitle("Shopping lists")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     EditButton()
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button { isAddingList = true } label: {
-                        Label("リスト追加", systemImage: "plus")
+                        Label("Add list", systemImage: "plus")
                     }
                 }
             }
-            .alert("新しいリスト", isPresented: $isAddingList) {
-                TextField("リスト名", text: $newListName)
-                Button("追加") { addList() }
-                Button("キャンセル", role: .cancel) { newListName = "" }
+            .alert("New list", isPresented: $isAddingList) {
+                TextField("Name", text: $newListName)
+                Button("Add") { addList() }
+                Button("Cancel", role: .cancel) { newListName = "" }
             }
         }
     }

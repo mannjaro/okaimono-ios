@@ -9,19 +9,19 @@ struct PersistenceController {
         for i in 1...2 {
             let list = ShoppingList(context: context)
             list.id = UUID()
-            list.name = "買い物リスト \(i)"
+            list.name = "Shopping list \(i)"
             list.createdAt = Date()
 
             let menu = MenuItem(context: context)
             menu.id = UUID()
-            menu.name = "献立 \(i)"
+            menu.name = "Ingredient \(i)"
             menu.createdAt = Date()
             menu.list = list
 
             for i in 1...2 {
                 let ingredient = Ingredient(context: context)
                 ingredient.id = UUID()
-                ingredient.name = "サンプル \(i)"
+                ingredient.name = "Sample \(i)"
                 ingredient.quantity = "100g"
                 ingredient.isChecked = false
                 ingredient.createdAt = Date()
