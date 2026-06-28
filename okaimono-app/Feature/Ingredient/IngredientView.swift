@@ -35,14 +35,15 @@ struct IngredientView: View {
                     TextField("Add ingredient", text: $newName)
                         .focused($focusedField, equals: .name)
                         .onSubmit {
-                            if newName.isEmpty { return }
-                            focusedField = .quantity
+                            addIngredient()
+                            focusedField = .name
                         }
-                    TextField("量", text: $newQuantity)
+                    TextField("qty.", text: $newQuantity)
                         .focused($focusedField, equals: .quantity)
                         .frame(width: 64)
                         .multilineTextAlignment(.trailing)
                         .foregroundColor(.secondary)
+                        .contentShape(Rectangle())
                         .onSubmit {
                             addIngredient()
                             focusedField = .name
@@ -91,6 +92,8 @@ struct IngredientView: View {
 }
 
 private struct IngredientRow: View {
+    @Environment(\.managedObjectContext) private var viewContext
+    
     @ObservedObject var ingredient: Ingredient
     let onToggle: () -> Void
 
@@ -99,15 +102,23 @@ private struct IngredientRow: View {
             Image(systemName: ingredient.isChecked ? "checkmark.circle.fill" : "circle")
                 .foregroundColor(ingredient.isChecked ? .green : .secondary)
                 .onTapGesture { onToggle() }
-            Text(ingredient.name ?? "")
+            TextField("", text: Binding(
+                get: { ingredient.name ?? "" },
+                set: { ingredient.name = $0 }
+            ))
                 .strikethrough(ingredient.isChecked)
                 .foregroundColor(ingredient.isChecked ? .secondary : .primary)
             Spacer()
-            if let qty = ingredient.quantity, !qty.isEmpty {
-                Text(qty)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+
+            TextField("qty.", text: Binding(
+                get: { ingredient.quantity ?? "" },
+                set: { ingredient.quantity = $0.isEmpty ? nil : $0 }
+            ))
+            .frame(width: 64)
+            .font(.caption)
+            .multilineTextAlignment(.trailing)
+            .foregroundColor(.secondary)
+            .onSubmit { viewContext.saveIfNeeded() }
         }
     }
 }
