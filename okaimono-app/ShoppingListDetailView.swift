@@ -69,9 +69,6 @@ struct ShoppingListDetailView: View {
     }
 
     // MARK: - CRUD
-
-    /// ※ 元コードに addMenu / deleteItems が無かったため一般的な実装で補完しています。
-    ///   既存の実装があるならそちらを優先してください。
     private func addMenu() {
         let name = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
@@ -90,7 +87,6 @@ struct ShoppingListDetailView: View {
 }
 
 // MARK: - Row
-
 private struct MenuRow: View {
     @ObservedObject var menu: MenuItem
     let isEditing: Bool
