@@ -43,7 +43,7 @@ Each entity is a hand-written `NSManagedObject` subclass (no Xcode-generated cod
 - `MenuItem.ingredients: NSSet<Ingredient>` — one-to-many
 - Sorted array accessors (`menusArray`, `ingredientsArray`) sort by `createdAt` ascending
 
-**Persistence:** `NSPersistentContainer` (local only). CloudKit migration is stubbed with TODO comments in `Persistence.swift` — switch to `NSPersistentCloudKitContainer` with container ID `iCloud.mannjaro.okaimono-app` when Apple Developer Program is active.
+**Persistence:** `NSPersistentCloudKitContainer` with container ID `iCloud.mannjaro.okaimono-app`.
 
 **Navigation flow:**
 1. `ContentView` — list of `ShoppingList` records, sorted newest-first

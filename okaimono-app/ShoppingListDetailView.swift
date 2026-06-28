@@ -77,6 +77,7 @@ struct ShoppingListDetailView: View {
         guard !name.isEmpty else { return }
 
         let menu = MenuItem(context: viewContext)
+        menu.id = UUID()
         menu.name = name
         menu.createdAt = Date()
         menu.list = list
