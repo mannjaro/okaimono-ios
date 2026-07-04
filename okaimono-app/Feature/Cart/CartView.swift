@@ -18,8 +18,37 @@ struct CartView: View {
     }
     
     var body: some View {
-        ForEach (ingredients) { item in
+        List {
+            ForEach (ingredients) { item in
+                CartRow(
+                    item: item,
+                    onToggle: {
+                        withAnimation {
+                            item.toggleCheck()
+                            viewContext.saveIfNeeded()
+                        }
+                    }
+                )
+            }
+        }
+        .navigationTitle("Ingredients")
+    }
+}
+
+struct CartRow: View {
+    @ObservedObject var item: Ingredient
+    let onToggle: () -> Void
+    
+    var body: some View {
+        HStack {
+            Image(systemName: item.isChecked ? "checkmark.circle.fill" : "circle")
             Text(item.name ?? "")
+            Spacer()
+            Text(item.quantity ?? "")
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onToggle()
         }
     }
 }

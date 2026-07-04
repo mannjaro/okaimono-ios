@@ -64,7 +64,7 @@ struct IngredientView: View {
     }
 
     private func toggleCheck(_ ingredient: Ingredient) {
-        ingredient.isChecked.toggle()
+        ingredient.toggleCheck()
         viewContext.saveIfNeeded()
     }
 
@@ -101,13 +101,24 @@ private struct IngredientRow: View {
         HStack {
             Image(systemName: ingredient.isChecked ? "checkmark.circle.fill" : "circle")
                 .foregroundColor(ingredient.isChecked ? .green : .secondary)
-                .onTapGesture { onToggle() }
+                .onTapGesture {
+                    withAnimation {
+                        onToggle()
+                    }
+                }
             TextField("", text: Binding(
                 get: { ingredient.name ?? "" },
                 set: { ingredient.name = $0 }
             ))
-                .strikethrough(ingredient.isChecked)
-                .foregroundColor(ingredient.isChecked ? .secondary : .primary)
+            .foregroundColor(ingredient.isChecked ? .secondary : .primary)
+            .overlay(alignment: .leading) {
+                if ingredient.isChecked {
+                    Text(ingredient.name ?? "")
+                        .strikethrough(true, color: .primary)
+                        .foregroundColor(.clear)
+                        .transition(.opacity)
+                }
+            }
             Spacer()
 
             TextField("qty.", text: Binding(

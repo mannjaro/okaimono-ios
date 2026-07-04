@@ -48,14 +48,14 @@
 			path = "okaimono-app";
 			sourceTree = "<group>";
 		};
-		BBAFF2432FE64C350086AC15 /* okaimono-appTests */ = {
+		BBAFF2432FE64C350086AC15 /* okaimonoAppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "okaimono-appTests";
+			path = okaimonoAppTests;
 			sourceTree = "<group>";
 		};
-		BBAFF24D2FE64C350086AC15 /* okaimono-appUITests */ = {
+		BBAFF24D2FE64C350086AC15 /* okaimonoAppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "okaimono-appUITests";
+			path = okaimonoAppUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -89,8 +89,8 @@
 			isa = PBXGroup;
 			children = (
 				BBAFF2312FE64C330086AC15 /* okaimono-app */,
-				BBAFF2432FE64C350086AC15 /* okaimono-appTests */,
-				BBAFF24D2FE64C350086AC15 /* okaimono-appUITests */,
+				BBAFF2432FE64C350086AC15 /* okaimonoAppTests */,
+				BBAFF24D2FE64C350086AC15 /* okaimonoAppUITests */,
 				BBAFF2302FE64C330086AC15 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -144,7 +144,7 @@
 				BBAFF2422FE64C350086AC15 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				BBAFF2432FE64C350086AC15 /* okaimono-appTests */,
+				BBAFF2432FE64C350086AC15 /* okaimonoAppTests */,
 			);
 			name = "okaimono-appTests";
 			packageProductDependencies = (
@@ -167,7 +167,7 @@
 				BBAFF24C2FE64C350086AC15 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				BBAFF24D2FE64C350086AC15 /* okaimono-appUITests */,
+				BBAFF24D2FE64C350086AC15 /* okaimonoAppUITests */,
 			);
 			name = "okaimono-appUITests";
 			packageProductDependencies = (

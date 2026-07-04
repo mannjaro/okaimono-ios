@@ -21,3 +21,8 @@ public class Ingredient: NSManagedObject {
 
 extension Ingredient: Identifiable {}
 extension Ingredient: CoreDataEntity {}
+extension Ingredient {
+    func toggleCheck() {
+        isChecked.toggle()
+    }
+}
