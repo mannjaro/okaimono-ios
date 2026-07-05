@@ -6,6 +6,7 @@ struct IngredientListContent: View {
     let menu: MenuItem
 
     @FetchRequest private var ingredients: FetchedResults<Ingredient>
+    @FetchRequest private var allIngredients: FetchedResults<Ingredient>
 
     @State private var newName = ""
     @State private var newQuantity = ""
@@ -20,6 +21,19 @@ struct IngredientListContent: View {
             predicate: NSPredicate(format: "menu == %@", menu),
             animation: .default
         )
+        _allIngredients = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \Ingredient.createdAt, ascending: false)],
+            animation: .default
+        )
+    }
+
+    private var suggestions: [String] {
+        guard focusedField == .name else { return [] }
+        return IngredientNameSuggestions.suggestions(
+            from: Array(allIngredients),
+            matching: newName,
+            excluding: ingredients.compactMap(\.name)
+        )
     }
 
     var body: some View {
@@ -27,22 +41,39 @@ struct IngredientListContent: View {
             IngredientRow(ingredient: ingredient)
         }
 
-        HStack {
-            TextField("Add ingredient", text: $newName)
-                .focused($focusedField, equals: .name)
-                .onSubmit {
-                    addIngredient()
-                    focusedField = .name
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                TextField("Add ingredient", text: $newName)
+                    .focused($focusedField, equals: .name)
+                    .onSubmit {
+                        addIngredient()
+                        focusedField = .name
+                    }
+                TextField("qty.", text: $newQuantity)
+                    .focused($focusedField, equals: .quantity)
+                    .frame(width: 64)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+                    .onSubmit {
+                        addIngredient()
+                        focusedField = .name
+                    }
+            }
+
+            if !suggestions.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(suggestions, id: \.self) { name in
+                            Button(name) {
+                                newName = name
+                                focusedField = .quantity
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
                 }
-            TextField("qty.", text: $newQuantity)
-                .focused($focusedField, equals: .quantity)
-                .frame(width: 64)
-                .multilineTextAlignment(.trailing)
-                .foregroundColor(.secondary)
-                .onSubmit {
-                    addIngredient()
-                    focusedField = .name
-                }
+            }
         }
         .padding(.vertical, 4)
     }
