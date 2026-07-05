@@ -11,8 +11,10 @@ struct CartView: View {
     init(list: ShoppingList) {
         self.list = list
         _ingredients = FetchRequest(
-            // sortDescriptors: [NSSortDescriptor(keyPath: \Ingredient.createdAt, ascending: true)],
-            sortDescriptors: [NSSortDescriptor(key: "name", ascending: true, selector: #selector(NSString.localizedStandardCompare(_:)))],
+            sortDescriptors: [
+                NSSortDescriptor(keyPath: \Ingredient.isChecked, ascending: true),
+                NSSortDescriptor(key: "name", ascending: true, selector: #selector(NSString.localizedStandardCompare(_:)))
+            ],
             predicate: NSPredicate(format: "menu.list == %@", list),
             animation: .default,
         )
@@ -20,19 +22,37 @@ struct CartView: View {
     
     var body: some View {
         List {
-            ForEach(ingredients) { item in
-                CartRow(
-                    item: item,
-                    onToggle: {
-                        withAnimation {
-                            item.toggleCheck()
-                            viewContext.saveIfNeeded()
-                        }
+            Section("Buy") {
+                ForEach(uncheckedIngredients) { item in
+                    cartRow(for: item)
+                }
+            }
+            if !checkedIngredients.isEmpty {
+                Section("Bought") {
+                    ForEach(checkedIngredients) { item in
+                        cartRow(for: item)
                     }
-                )
+                }
             }
         }
         .navigationTitle("Ingredients")
+    }
+    
+    
+    private var uncheckedIngredients: [Ingredient] {
+        ingredients.filter { !$0.isChecked }
+    }
+    private var checkedIngredients: [Ingredient] {
+        ingredients.filter { $0.isChecked }
+    }
+    
+    private func cartRow(for item: Ingredient) -> some View {
+        CartRow(item: item, onToggle: {
+            withAnimation {
+                item.toggleCheck()
+                viewContext.saveIfNeeded()
+            }
+        })
     }
 }
 
