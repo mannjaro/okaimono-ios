@@ -19,7 +19,7 @@ struct CartView: View {
     
     var body: some View {
         List {
-            ForEach (ingredients) { item in
+            ForEach(ingredients) { item in
                 CartRow(
                     item: item,
                     onToggle: {

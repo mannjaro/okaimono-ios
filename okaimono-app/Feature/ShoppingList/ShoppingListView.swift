@@ -18,10 +18,8 @@ struct ShoppingListView: View {
             List {
                 ForEach(lists) { list in
                     NavigationLink(destination: DetailView(list: list)) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(list.name ?? "Unnamed list")
-                                .font(.headline)
-                        }
+                        Text(list.name ?? "Unnamed list")
+                            .font(.headline)
                     }
                 }
                 .onDelete(perform: deleteLists)

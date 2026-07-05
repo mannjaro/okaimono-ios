@@ -2,8 +2,6 @@ import SwiftUI
 import CoreData
 
 struct DetailView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-
     let list: ShoppingList
 
     var body: some View {

@@ -23,38 +23,28 @@ struct IngredientListContent: View {
     }
 
     var body: some View {
-            ForEach(Array(ingredients)) { ingredient in
-                IngredientRow(
-                    ingredient: ingredient,
-                    onToggle: { toggleCheck(ingredient) },
-                    onDelete: { deleteIngredient(ingredient) }
-                )
-            }
+        ForEach(ingredients) { ingredient in
+            IngredientRow(ingredient: ingredient)
+        }
 
-            HStack {
-                TextField("Add ingredient", text: $newName)
-                    .focused($focusedField, equals: .name)
-                    .onSubmit {
-                        addIngredient()
-                        focusedField = .name
-                    }
-                TextField("qty.", text: $newQuantity)
-                    .focused($focusedField, equals: .quantity)
-                    .frame(width: 64)
-                    .multilineTextAlignment(.trailing)
-                    .foregroundColor(.secondary)
-                    .onSubmit {
-                        addIngredient()
-                        focusedField = .name
-                    }
-            }
-        
+        HStack {
+            TextField("Add ingredient", text: $newName)
+                .focused($focusedField, equals: .name)
+                .onSubmit {
+                    addIngredient()
+                    focusedField = .name
+                }
+            TextField("qty.", text: $newQuantity)
+                .focused($focusedField, equals: .quantity)
+                .frame(width: 64)
+                .multilineTextAlignment(.trailing)
+                .foregroundColor(.secondary)
+                .onSubmit {
+                    addIngredient()
+                    focusedField = .name
+                }
+        }
         .padding(.vertical, 4)
-    }
-
-    private func toggleCheck(_ ingredient: Ingredient) {
-        ingredient.toggleCheck()
-        viewContext.saveIfNeeded()
     }
 
     private func addIngredient() {
@@ -72,21 +62,12 @@ struct IngredientListContent: View {
             viewContext.saveIfNeeded()
         }
     }
-
-    private func deleteIngredient(_ ingredient: Ingredient) {
-        withAnimation {
-            viewContext.delete(ingredient)
-            viewContext.saveIfNeeded()
-        }
-    }
 }
 
 private struct IngredientRow: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     @ObservedObject var ingredient: Ingredient
-    let onToggle: () -> Void
-    let onDelete: () -> Void
 
     var body: some View {
         HStack {
@@ -120,6 +101,7 @@ private struct IngredientRow: View {
             }
         }
     }
+
     private func deleteIngredient(_ ingredient: Ingredient) {
         withAnimation {
             viewContext.delete(ingredient)

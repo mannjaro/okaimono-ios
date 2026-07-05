@@ -17,7 +17,6 @@ struct MenuRow: View {
                 .onAppear { isFocused = true }
         } else {
             Text(menu.name ?? "")
-                .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .onTapGesture(perform: onBeginEditing)
