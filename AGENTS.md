@@ -61,3 +61,13 @@ The model file is `okaimono_app` (`.xcdatamodeld` managed by Xcode). Entity attr
 | `ShoppingList` | `id: UUID`, `name: String?`, `createdAt: Date?` |
 | `MenuItem` | `id: UUID`, `name: String?`, `createdAt: Date?` |
 | `Ingredient` | `id: UUID`, `name: String?`, `quantity: String?`, `isChecked: Bool`, `createdAt: Date?` |
+
+## Cursor Cloud specific instructions
+
+**This project cannot be built, tested, or run on Cursor Cloud agents.** Cloud agent VMs run Linux (Ubuntu x86_64), but this is a native Apple-platform app that requires **macOS + Xcode + the iOS Simulator**:
+
+- Sources import `SwiftUI`, `CoreData`, and `XCTest`, and persistence uses `NSPersistentCloudKitContainer` (CloudKit) with container `iCloud.mannjaro.okaimono-app`. These are closed-source Apple frameworks that ship only with Xcode on macOS.
+- The build system is `okaimono-app.xcodeproj` driven by `xcodebuild` / XcodeBuildMCP against an iOS Simulator (iPhone 17 Pro). There is no `Package.swift`, so there is no cross-platform Swift Package Manager path.
+- The open-source Swift-for-Linux toolchain does not help: it provides only the standard library and swift-corelibs-Foundation, not `SwiftUI`, `CoreData`, `CloudKit`, or the iOS SDK, and there is no iOS Simulator on Linux. The test target also uses `@testable import okaimono_app`, so tests require the full app module (SwiftUI/CoreData) to compile.
+
+There is **no update script** and no Linux dependency setup that enables development here. Build, lint, test, and run must be done on a macOS machine (or a macOS CI runner) using the commands in the **Build and run** section above.
