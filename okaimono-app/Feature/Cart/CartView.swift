@@ -11,7 +11,8 @@ struct CartView: View {
     init(list: ShoppingList) {
         self.list = list
         _ingredients = FetchRequest(
-            sortDescriptors: [NSSortDescriptor(keyPath: \Ingredient.createdAt, ascending: true)],
+            // sortDescriptors: [NSSortDescriptor(keyPath: \Ingredient.createdAt, ascending: true)],
+            sortDescriptors: [NSSortDescriptor(key: "name", ascending: true, selector: #selector(NSString.localizedStandardCompare(_:)))],
             predicate: NSPredicate(format: "menu.list == %@", list),
             animation: .default,
         )
