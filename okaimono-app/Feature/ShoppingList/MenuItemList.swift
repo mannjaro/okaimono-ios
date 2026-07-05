@@ -9,10 +9,10 @@ struct MenuItemList: View {
     @FetchRequest private var items: FetchedResults<MenuItem>
 
     @State private var newItemName = ""
-    @State private var selectedMenu: MenuItem?
+    @State private var expandedMenuIDs: Set<NSManagedObjectID> = []
     @State private var editingMenu: MenuItem?
     @State private var editingName = ""
-    
+
     init(list: ShoppingList) {
         self.list = list
         _items = FetchRequest(
@@ -25,24 +25,40 @@ struct MenuItemList: View {
     var body: some View {
         List {
             ForEach(items) { menu in
-                MenuRow(
-                    menu: menu,
-                    isEditing: editingMenu == menu,
-                    editingName: $editingName,
-                    onBeginEditing: { beginEditing(menu) },
-                    onCommit: commitEditing,
-                    onShowIngredients: { selectedMenu = menu }
-                )
+                DisclosureGroup(isExpanded: isExpanded(menu)) {
+                    IngredientListContent(menu: menu)
+                } label: {
+                    MenuRow(
+                        menu: menu,
+                        isEditing: editingMenu == menu,
+                        editingName: $editingName,
+                        onBeginEditing: { beginEditing(menu) },
+                        onCommit: commitEditing
+                    )
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            deleteMenu(menu)
+                        }
+                    }
+                }
             }
-            .onDelete(perform: deleteItems)
-            
             TextField("Add menu", text: $newItemName)
                 .onSubmit(addMenu)
         }
         .navigationTitle(list.name ?? "List")
-        .sheet(item: $selectedMenu) { menu in
-            IngredientView(menu: menu)
-        }
+    }
+
+    private func isExpanded(_ menu: MenuItem) -> Binding<Bool> {
+        Binding(
+            get: { expandedMenuIDs.contains(menu.objectID) },
+            set: { isExpanded in
+                if isExpanded {
+                    expandedMenuIDs.insert(menu.objectID)
+                } else {
+                    expandedMenuIDs.remove(menu.objectID)
+                }
+            }
+        )
     }
     
     private func beginEditing(_ menu: MenuItem) {
@@ -68,7 +84,8 @@ struct MenuItemList: View {
         viewContext.saveIfNeeded()
     }
 
-    private func deleteItems(at offsets: IndexSet) {
-        viewContext.delete(items, at: offsets)
+    private func deleteMenu(_ menu: MenuItem) {
+        viewContext.delete(menu)
+        viewContext.saveIfNeeded()
     }
 }

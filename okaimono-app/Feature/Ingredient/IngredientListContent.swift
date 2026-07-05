@@ -1,9 +1,8 @@
 import SwiftUI
 import CoreData
 
-struct IngredientView: View {
+struct IngredientListContent: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.dismiss) private var dismiss
     let menu: MenuItem
 
     @FetchRequest private var ingredients: FetchedResults<Ingredient>
@@ -24,43 +23,33 @@ struct IngredientView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(ingredients) { ingredient in
-                    IngredientRow(ingredient: ingredient) { toggleCheck(ingredient) }
-                }
-                .onDelete(perform: deleteIngredients)
+            ForEach(Array(ingredients)) { ingredient in
+                IngredientRow(
+                    ingredient: ingredient,
+                    onToggle: { toggleCheck(ingredient) },
+                    onDelete: { deleteIngredient(ingredient) }
+                )
+            }
 
-                HStack {
-                    TextField("Add ingredient", text: $newName)
-                        .focused($focusedField, equals: .name)
-                        .onSubmit {
-                            addIngredient()
-                            focusedField = .name
-                        }
-                    TextField("qty.", text: $newQuantity)
-                        .focused($focusedField, equals: .quantity)
-                        .frame(width: 64)
-                        .multilineTextAlignment(.trailing)
-                        .foregroundColor(.secondary)
-                        .contentShape(Rectangle())
-                        .onSubmit {
-                            addIngredient()
-                            focusedField = .name
-                        }
-                }
+            HStack {
+                TextField("Add ingredient", text: $newName)
+                    .focused($focusedField, equals: .name)
+                    .onSubmit {
+                        addIngredient()
+                        focusedField = .name
+                    }
+                TextField("qty.", text: $newQuantity)
+                    .focused($focusedField, equals: .quantity)
+                    .frame(width: 64)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+                    .onSubmit {
+                        addIngredient()
+                        focusedField = .name
+                    }
             }
-            .navigationTitle(menu.name ?? "Ingredient")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") { dismiss() }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-            }
-        }
+        
+        .padding(.vertical, 4)
     }
 
     private func toggleCheck(_ ingredient: Ingredient) {
@@ -84,28 +73,23 @@ struct IngredientView: View {
         }
     }
 
-    private func deleteIngredients(offsets: IndexSet) {
+    private func deleteIngredient(_ ingredient: Ingredient) {
         withAnimation {
-            viewContext.delete(ingredients, at: offsets)
+            viewContext.delete(ingredient)
+            viewContext.saveIfNeeded()
         }
     }
 }
 
 private struct IngredientRow: View {
     @Environment(\.managedObjectContext) private var viewContext
-    
+
     @ObservedObject var ingredient: Ingredient
     let onToggle: () -> Void
+    let onDelete: () -> Void
 
     var body: some View {
         HStack {
-            Image(systemName: ingredient.isChecked ? "checkmark.circle.fill" : "circle")
-                .foregroundColor(ingredient.isChecked ? .green : .secondary)
-                .onTapGesture {
-                    withAnimation {
-                        onToggle()
-                    }
-                }
             TextField("", text: Binding(
                 get: { ingredient.name ?? "" },
                 set: { ingredient.name = $0 }
@@ -126,10 +110,20 @@ private struct IngredientRow: View {
                 set: { ingredient.quantity = $0.isEmpty ? nil : $0 }
             ))
             .frame(width: 64)
-            .font(.caption)
             .multilineTextAlignment(.trailing)
             .foregroundColor(.secondary)
             .onSubmit { viewContext.saveIfNeeded() }
+        }
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                deleteIngredient(ingredient)
+            }
+        }
+    }
+    private func deleteIngredient(_ ingredient: Ingredient) {
+        withAnimation {
+            viewContext.delete(ingredient)
+            viewContext.saveIfNeeded()
         }
     }
 }
@@ -137,6 +131,8 @@ private struct IngredientRow: View {
 #Preview {
     let context = PersistenceController.preview.container.viewContext
     let menu = try! context.fetch(MenuItem.fetchRequest()).first!
-    return IngredientView(menu: menu)
-        .environment(\.managedObjectContext, context)
+    return List {
+        IngredientListContent(menu: menu)
+    }
+    .environment(\.managedObjectContext, context)
 }
