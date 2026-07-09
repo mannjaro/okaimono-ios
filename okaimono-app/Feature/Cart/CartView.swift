@@ -35,7 +35,7 @@ struct CartView: View {
                 }
             }
         }
-        .navigationTitle("Ingredients")
+        .navigationTitle("買い物リスト")
     }
     
     
