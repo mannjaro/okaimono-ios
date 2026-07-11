@@ -5,16 +5,16 @@ struct DetailView: View {
     let list: ShoppingList
 
     var body: some View {
-        ZStack {
+        TabView {
             MenuItemList(list: list)
-            VStack {
-                Spacer()
-                NavigationLink(destination: CartView(list: list)) {
-                    Image(systemName: "cart.fill")
+                .tabItem {
+                    Label("献立", systemImage: "fork.knife")
                 }
-                .buttonStyle(.glassProminent)
-                .padding()
-            }
+
+            CartView(list: list)
+                .tabItem {
+                    Label("買い物リスト", systemImage: "cart.fill")
+                }
         }
     }
 }

@@ -23,33 +23,36 @@ struct CartView: View {
     var body: some View {
         List {
             Section("Buy") {
-                ForEach(uncheckedIngredients) { item in
-                    cartRow(for: item)
+                ForEach(buyGroups) { group in
+                    cartRow(for: group)
                 }
             }
-            if !checkedIngredients.isEmpty {
+            if !boughtGroups.isEmpty {
                 Section("Bought") {
-                    ForEach(checkedIngredients) { item in
-                        cartRow(for: item)
+                    ForEach(boughtGroups) { group in
+                        cartRow(for: group)
                     }
                 }
             }
         }
-        .navigationTitle("Ingredients")
+        .navigationTitle("買い物リスト")
     }
     
     
-    private var uncheckedIngredients: [Ingredient] {
-        ingredients.filter { !$0.isChecked }
-    }
-    private var checkedIngredients: [Ingredient] {
-        ingredients.filter { $0.isChecked }
+    private var buyGroups: [CartIngredientGroup] {
+        CartIngredientGroup.makeGroups(from: Array(ingredients))
+            .filter { !$0.isChecked }
     }
     
-    private func cartRow(for item: Ingredient) -> some View {
-        CartRow(item: item, onToggle: {
+    private var boughtGroups: [CartIngredientGroup] {
+        CartIngredientGroup.makeGroups(from: Array(ingredients))
+            .filter(\.isChecked)
+    }
+    
+    private func cartRow(for group: CartIngredientGroup) -> some View {
+        CartRow(group: group, onToggle: {
             withAnimation {
-                item.toggleCheck()
+                group.setChecked(!group.isChecked)
                 viewContext.saveIfNeeded()
             }
         })
@@ -57,15 +60,14 @@ struct CartView: View {
 }
 
 struct CartRow: View {
-    @ObservedObject var item: Ingredient
+    let group: CartIngredientGroup
     let onToggle: () -> Void
-    
     var body: some View {
         HStack {
-            Image(systemName: item.isChecked ? "checkmark.circle.fill" : "circle")
-            Text(item.name ?? "")
+            Image(systemName: group.isChecked ? "checkmark.circle.fill" : "circle")
+            Text(group.displayName)
             Spacer()
-            Text(item.quantity ?? "")
+            Text(group.displayQuantity)
         }
         .contentShape(Rectangle())
         .onTapGesture {

@@ -106,15 +106,6 @@ private struct IngredientRow: View {
                 get: { ingredient.name ?? "" },
                 set: { ingredient.name = $0 }
             ))
-            .foregroundColor(ingredient.isChecked ? .secondary : .primary)
-            .overlay(alignment: .leading) {
-                if ingredient.isChecked {
-                    Text(ingredient.name ?? "")
-                        .strikethrough(true, color: .primary)
-                        .foregroundColor(.clear)
-                        .transition(.opacity)
-                }
-            }
             Spacer()
 
             TextField("qty.", text: Binding(
