@@ -52,8 +52,7 @@ struct CartView: View {
     private func cartRow(for group: CartIngredientGroup) -> some View {
         CartRow(group: group, onToggle: {
             withAnimation {
-                let newValue = !group.isChecked
-                group.items.forEach { $0.isChecked = newValue }
+                group.setChecked(!group.isChecked)
                 viewContext.saveIfNeeded()
             }
         })

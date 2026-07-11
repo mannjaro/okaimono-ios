@@ -15,14 +15,21 @@ struct CartIngredientGroup: Identifiable {
     var isChecked: Bool {
         items.allSatisfy(\.isChecked)
     }
+
+    func setChecked(_ value: Bool) {
+        items.forEach { $0.isChecked = value }
+    }
+
     var displayQuantity: String {
         let quantities = items
             .compactMap { $0.quantity?.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-        var seen = Set<String>()
-        return quantities
-            .filter { seen.insert($0).inserted }
-            .joined(separator: ", ")
+        let counts = Dictionary(quantities.map {($0, 1)}, uniquingKeysWith: +)
+        return counts.keys.sorted().map { q in
+            let count = counts[q]!
+            return count == 1 ? q : "\(q) x \(count)"
+        }
+        .joined(separator: ", ")
     }
     
     static func makeGroups(from ingredients:[Ingredient]) -> [CartIngredientGroup] {
