@@ -23,8 +23,10 @@ struct DetailView: View {
     NavigationStack {
         DetailView(list: {
             let context = PersistenceController.preview.container.viewContext
-            return try! context.fetch(ShoppingList.fetchRequest()).first!
+            return (try? context.fetch(ShoppingList.fetchRequest()).first)!
         }())
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .environment(SaveErrorCenter())
+        .environment(DeletionUndoCenter())
     }
 }
