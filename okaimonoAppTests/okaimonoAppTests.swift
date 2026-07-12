@@ -7,6 +7,82 @@ import Testing
 @Suite(.serialized)
 struct okaimono_appTests {
 
+    @Test func normalizedIngredientNameHandlesWhitespaceKanaAndWidth() {
+        #expect(" りんご ".normalizedForIngredientMatch == "りんご".normalizedForIngredientMatch)
+        #expect("トウモロコシ".normalizedForIngredientMatch == "とうもろこし".normalizedForIngredientMatch)
+        #expect("ＡＢＣ".normalizedForIngredientMatch == "abc")
+    }
+
+    @Test func ingredientSuggestionsMatchPrefixAndExcludeCurrentMenu() {
+        let context = PersistenceController(inMemory: true).container.viewContext
+
+        let list = ShoppingList(context: context)
+        list.name = "テスト"
+
+        let menu = MenuItem(context: context)
+        menu.name = "献立"
+        menu.list = list
+
+        let tomato = Ingredient(context: context)
+        tomato.name = "トマト"
+        tomato.menu = menu
+
+        let otherMenu = MenuItem(context: context)
+        otherMenu.name = "別献立"
+        otherMenu.list = list
+
+        let tomatoPaste = Ingredient(context: context)
+        tomatoPaste.name = "トマトペースト"
+        tomatoPaste.menu = otherMenu
+
+        let onion = Ingredient(context: context)
+        onion.name = "玉ねぎ"
+        onion.menu = otherMenu
+
+        #expect(context.saveIfNeeded())
+
+        let suggestions = IngredientNameSuggestions.suggestions(
+            from: [tomato, tomatoPaste, onion],
+            matching: "トマ",
+            excluding: ["トマト"]
+        )
+
+        #expect(suggestions == ["トマトペースト"])
+    }
+
+    @Test func cartGroupsMergeNormalizedNames() {
+        let context = PersistenceController(inMemory: true).container.viewContext
+
+        let list = ShoppingList(context: context)
+        let menu = MenuItem(context: context)
+        menu.list = list
+
+        let first = Ingredient(context: context)
+        first.name = "ねぎ"
+        first.quantity = "1本"
+        first.isChecked = false
+        first.menu = menu
+
+        let second = Ingredient(context: context)
+        second.name = "ネギ"
+        second.quantity = "2本"
+        second.isChecked = false
+        second.menu = menu
+
+        #expect(context.saveIfNeeded())
+        #expect("ねぎ".normalizedForIngredientMatch == "ネギ".normalizedForIngredientMatch)
+
+        let groups = CartIngredientGroup.makeGroups(from: [first, second])
+        #expect(groups.count == 1)
+
+        guard let group = groups.first else {
+            return
+        }
+        #expect(group.items.count == 2)
+        #expect(group.displayQuantity.contains("1本"))
+        #expect(group.displayQuantity.contains("2本"))
+    }
+
     @Test func coreDataSavePersistsShoppingList() throws {
         let context = PersistenceController(inMemory: true).container.viewContext
 
