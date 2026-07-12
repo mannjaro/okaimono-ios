@@ -3,6 +3,7 @@ import CoreData
 
 struct IngredientListContent: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(SaveErrorCenter.self) private var saveErrorCenter
     let menu: MenuItem
 
     @FetchRequest private var ingredients: FetchedResults<Ingredient>
@@ -12,7 +13,9 @@ struct IngredientListContent: View {
     @State private var newQuantity = ""
     @FocusState private var focusedField: Field?
 
-    private enum Field { case name, quantity }
+    private enum Field {
+        case name, quantity
+    }
 
     init(menu: MenuItem) {
         self.menu = menu
@@ -37,19 +40,33 @@ struct IngredientListContent: View {
     }
 
     var body: some View {
-        ForEach(ingredients) { ingredient in
-            IngredientRow(ingredient: ingredient)
+        if ingredients.isEmpty {
+            Text("材料がありません。下から追加できます。")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("empty-ingredients-label")
         }
 
-        VStack(alignment: .leading, spacing: 4) {
+        ForEach(ingredients) { ingredient in
+            IngredientRow(
+                ingredient: ingredient,
+                onSave: {
+                    viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
+                },
+                onDelete: { deleteIngredient(ingredient) }
+            )
+        }
+
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                TextField("Add ingredient", text: $newName)
+                TextField("材料を追加", text: $newName)
                     .focused($focusedField, equals: .name)
                     .onSubmit {
                         addIngredient()
                         focusedField = .name
                     }
-                TextField("qty.", text: $newQuantity)
+                    .accessibilityIdentifier("add-ingredient-name-field")
+                TextField("分量", text: $newQuantity)
                     .focused($focusedField, equals: .quantity)
                     .frame(width: 64)
                     .multilineTextAlignment(.trailing)
@@ -58,7 +75,11 @@ struct IngredientListContent: View {
                         addIngredient()
                         focusedField = .name
                     }
+                    .accessibilityIdentifier("add-ingredient-quantity-field")
             }
+
+            Button("材料を追加する", action: addIngredient)
+                .accessibilityIdentifier("confirm-add-ingredient-button")
 
             if !suggestions.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -79,64 +100,100 @@ struct IngredientListContent: View {
     }
 
     private func addIngredient() {
-        guard !newName.isEmpty else { return }
-        let name = newName
-        let qty = newQuantity.isEmpty ? nil : newQuantity
+        let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        let qty = newQuantity.trimmingCharacters(in: .whitespacesAndNewlines)
         newName = ""
         newQuantity = ""
         withAnimation {
             let item = Ingredient(context: viewContext)
             item.name = name
-            item.quantity = qty
+            item.quantity = qty.isEmpty ? nil : qty
             item.isChecked = false
             item.menu = menu
-            viewContext.saveIfNeeded()
-        }
-    }
-}
-
-private struct IngredientRow: View {
-    @Environment(\.managedObjectContext) private var viewContext
-
-    @ObservedObject var ingredient: Ingredient
-
-    var body: some View {
-        HStack {
-            TextField("", text: Binding(
-                get: { ingredient.name ?? "" },
-                set: { ingredient.name = $0 }
-            ))
-            Spacer()
-
-            TextField("qty.", text: Binding(
-                get: { ingredient.quantity ?? "" },
-                set: { ingredient.quantity = $0.isEmpty ? nil : $0 }
-            ))
-            .frame(width: 64)
-            .multilineTextAlignment(.trailing)
-            .foregroundColor(.secondary)
-            .onSubmit { viewContext.saveIfNeeded() }
-        }
-        .swipeActions(edge: .trailing) {
-            Button(role: .destructive) {
-                deleteIngredient(ingredient)
-            }
+            viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
         }
     }
 
     private func deleteIngredient(_ ingredient: Ingredient) {
         withAnimation {
             viewContext.delete(ingredient)
-            viewContext.saveIfNeeded()
+            viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
         }
+    }
+}
+
+private struct IngredientRow: View {
+    @ObservedObject var ingredient: Ingredient
+    let onSave: () -> Void
+    let onDelete: () -> Void
+
+    @FocusState private var focusedField: Field?
+
+    private enum Field {
+        case name, quantity
+    }
+
+    var body: some View {
+        HStack {
+            TextField("材料名", text: Binding(
+                get: { ingredient.name ?? "" },
+                set: { ingredient.name = $0 }
+            ))
+            .focused($focusedField, equals: .name)
+            .onSubmit(saveName)
+            .accessibilityLabel("材料名")
+
+            Spacer()
+
+            TextField("分量", text: Binding(
+                get: { ingredient.quantity ?? "" },
+                set: { ingredient.quantity = $0.isEmpty ? nil : $0 }
+            ))
+            .focused($focusedField, equals: .quantity)
+            .frame(width: 64)
+            .multilineTextAlignment(.trailing)
+            .foregroundColor(.secondary)
+            .onSubmit(saveQuantity)
+            .accessibilityLabel("分量")
+        }
+        .onChange(of: focusedField) { oldValue, newValue in
+            if oldValue == .name && newValue != .name {
+                saveName()
+            }
+            if oldValue == .quantity && newValue != .quantity {
+                saveQuantity()
+            }
+        }
+        .swipeActions(edge: .trailing) {
+            Button("削除", role: .destructive, action: onDelete)
+        }
+        .accessibilityIdentifier("ingredient-row")
+    }
+
+    private func saveName() {
+        let trimmed = (ingredient.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            ingredient.name = trimmed
+        }
+        onSave()
+    }
+
+    private func saveQuantity() {
+        if let quantity = ingredient.quantity {
+            let trimmed = quantity.trimmingCharacters(in: .whitespacesAndNewlines)
+            ingredient.quantity = trimmed.isEmpty ? nil : trimmed
+        }
+        onSave()
     }
 }
 
 #Preview {
     let context = PersistenceController.preview.container.viewContext
-    let menu = try! context.fetch(MenuItem.fetchRequest()).first!
+    let menu = (try? context.fetch(MenuItem.fetchRequest()).first)!
     return List {
         IngredientListContent(menu: menu)
     }
     .environment(\.managedObjectContext, context)
+    .environment(SaveErrorCenter())
 }
