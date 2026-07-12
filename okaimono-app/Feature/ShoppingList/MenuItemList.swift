@@ -18,7 +18,7 @@ struct MenuItemList: View {
         self.list = list
         _items = FetchRequest(
             sortDescriptors: [NSSortDescriptor(keyPath: \MenuItem.createdAt, ascending: true)],
-            predicate: NSPredicate(format: "list == %@", list),
+            predicate: NSPredicate(format: "list == %@ AND isArchived == NO", list),
             animation: .default
         )
     }
@@ -46,8 +46,8 @@ struct MenuItemList: View {
                         onCommit: commitEditing
                     )
                     .swipeActions(edge: .trailing) {
-                        Button("削除", role: .destructive) {
-                            deleteMenu(menu)
+                        Button("アーカイブ") {
+                            archiveMenu(menu)
                         }
                     }
                 }
@@ -106,6 +106,7 @@ struct MenuItemList: View {
         let menu = MenuItem(context: viewContext)
         menu.name = name
         menu.list = list
+        menu.isArchived = false
 
         newItemName = ""
         viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
@@ -122,5 +123,18 @@ struct MenuItemList: View {
             viewContext.delete(menu)
             viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
         }
+    }
+    
+    private func archiveMenu(_ menu: MenuItem) {
+        if editingMenu == menu {
+            editingMenu = nil
+        }
+        if let id = menu.id {
+            collapsedMenuIDs.remove(id)
+        }
+        withAnimation {
+            menu.isArchived = true
+        }
+        viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
     }
 }

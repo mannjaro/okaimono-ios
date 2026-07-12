@@ -9,6 +9,7 @@ public class MenuItem: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var name: String?
     @NSManaged public var createdAt: Date?
+    @NSManaged public var isArchived: Bool
     @NSManaged public var ingredients: NSSet?
     @NSManaged public var list: ShoppingList?
 

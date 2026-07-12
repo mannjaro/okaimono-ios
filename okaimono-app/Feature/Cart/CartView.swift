@@ -8,22 +8,34 @@ struct CartView: View {
     let list: ShoppingList
 
     @FetchRequest private var ingredients: FetchedResults<Ingredient>
+    @FetchRequest private var activeMenus: FetchedResults<MenuItem>
 
     init(list: ShoppingList) {
         self.list = list
+
         _ingredients = FetchRequest(
             sortDescriptors: [
                 NSSortDescriptor(keyPath: \Ingredient.isChecked, ascending: true),
-                NSSortDescriptor(key: "name", ascending: true, selector: #selector(NSString.localizedStandardCompare(_:)))
+                NSSortDescriptor(
+                    key: "name",
+                    ascending: true,
+                    selector: #selector(NSString.localizedStandardCompare(_:))
+                )
             ],
             predicate: NSPredicate(format: "menu.list == %@", list),
+            animation: .default
+        )
+
+        _activeMenus = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \MenuItem.createdAt, ascending: true)],
+            predicate: NSPredicate(format: "list == %@ AND isArchived == NO", list),
             animation: .default
         )
     }
 
     var body: some View {
         Group {
-            if ingredients.isEmpty {
+            if visibleIngredients.isEmpty {
                 ContentUnavailableView {
                     Label("買うものがありません", systemImage: "cart")
                 } description: {
@@ -52,13 +64,21 @@ struct CartView: View {
         .navigationTitle("買い物リスト")
     }
 
+    private var visibleIngredients: [Ingredient] {
+        let activeMenuIDs = Set(activeMenus.map(\.objectID))
+        return ingredients.filter { ingredient in
+            guard let menu = ingredient.menu else { return false }
+            return activeMenuIDs.contains(menu.objectID)
+        }
+    }
+
     private var buyGroups: [CartIngredientGroup] {
-        CartIngredientGroup.makeGroups(from: Array(ingredients))
+        CartIngredientGroup.makeGroups(from: visibleIngredients)
             .filter { !$0.isChecked }
     }
 
     private var boughtGroups: [CartIngredientGroup] {
-        CartIngredientGroup.makeGroups(from: Array(ingredients))
+        CartIngredientGroup.makeGroups(from: visibleIngredients)
             .filter(\.isChecked)
     }
 
