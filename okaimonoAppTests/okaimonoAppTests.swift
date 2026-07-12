@@ -12,13 +12,37 @@ struct okaimono_appTests {
 
         let list = ShoppingList(context: context)
         list.name = "週末の買い物"
-        try context.save()
+        #expect(context.saveIfNeeded())
 
         let request = ShoppingList.fetchRequest()
         let results = try context.fetch(request)
         #expect(results.count == 1)
         #expect(results.first?.name == "週末の買い物")
         #expect(results.first?.id != UUID(uuidString: "00000000-0000-0000-0000-000000000000"))
+    }
+
+    @Test func deletingMenuRemovesCascadeIngredients() throws {
+        let context = PersistenceController(inMemory: true).container.viewContext
+        let errorCenter = SaveErrorCenter()
+
+        let list = ShoppingList(context: context)
+        list.name = "保存対象"
+        let menu = MenuItem(context: context)
+        menu.name = "献立"
+        menu.list = list
+        let ingredient = Ingredient(context: context)
+        ingredient.name = "材料"
+        ingredient.menu = menu
+        #expect(context.saveIfNeeded())
+
+        context.delete(menu)
+        #expect(context.saveIfNeeded(reportingTo: errorCenter))
+
+        context.reset()
+        #expect(try context.count(for: ShoppingList.fetchRequest()) == 1)
+        #expect(try context.count(for: MenuItem.fetchRequest()) == 0)
+        #expect(try context.count(for: Ingredient.fetchRequest()) == 0)
+        #expect(errorCenter.message == nil)
     }
 
     @Test func cloudKitModelAttributesAreOptionalOrHaveDefaults() {
@@ -57,7 +81,7 @@ struct okaimono_appTests {
         let firstContext = firstController!.container.viewContext
         let list = ShoppingList(context: firstContext)
         list.name = "ディスク保存"
-        try firstContext.save()
+        #expect(firstContext.saveIfNeeded())
         firstController = nil
 
         var secondController: PersistenceController? = PersistenceController(

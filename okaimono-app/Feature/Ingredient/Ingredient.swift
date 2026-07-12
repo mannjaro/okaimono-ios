@@ -16,6 +16,7 @@ public class Ingredient: NSManagedObject {
     public override func awakeFromInsert() {
         super.awakeFromInsert()
         setupDefaults()
+        isChecked = false
     }
 }
 
