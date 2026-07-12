@@ -4,7 +4,6 @@ import CoreData
 struct CartView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveErrorCenter.self) private var saveErrorCenter
-    @Environment(DeletionUndoCenter.self) private var deletionUndoCenter
 
     let list: ShoppingList
 
@@ -69,10 +68,7 @@ struct CartView: View {
         CartRow(group: group) {
             withAnimation {
                 group.setChecked(!group.isChecked)
-                deletionUndoCenter.savePreservingPendingDeletion(
-                    in: viewContext,
-                    reportingTo: saveErrorCenter
-                )
+                viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
             }
         }
     }
@@ -109,6 +105,5 @@ struct CartRow: View {
         }())
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
         .environment(SaveErrorCenter())
-        .environment(DeletionUndoCenter())
     }
 }

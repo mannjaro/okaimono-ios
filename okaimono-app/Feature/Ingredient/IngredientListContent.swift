@@ -4,7 +4,6 @@ import CoreData
 struct IngredientListContent: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveErrorCenter.self) private var saveErrorCenter
-    @Environment(DeletionUndoCenter.self) private var deletionUndoCenter
     let menu: MenuItem
 
     @FetchRequest private var ingredients: FetchedResults<Ingredient>
@@ -52,10 +51,7 @@ struct IngredientListContent: View {
             IngredientRow(
                 ingredient: ingredient,
                 onSave: {
-                    deletionUndoCenter.savePreservingPendingDeletion(
-                        in: viewContext,
-                        reportingTo: saveErrorCenter
-                    )
+                    viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
                 },
                 onDelete: { deleteIngredient(ingredient) }
             )
@@ -115,20 +111,14 @@ struct IngredientListContent: View {
             item.quantity = qty.isEmpty ? nil : qty
             item.isChecked = false
             item.menu = menu
-            deletionUndoCenter.savePreservingPendingDeletion(
-                in: viewContext,
-                reportingTo: saveErrorCenter
-            )
+            viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
         }
     }
 
     private func deleteIngredient(_ ingredient: Ingredient) {
         withAnimation {
             viewContext.delete(ingredient)
-            deletionUndoCenter.savePreservingPendingDeletion(
-                in: viewContext,
-                reportingTo: saveErrorCenter
-            )
+            viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
         }
     }
 }
@@ -206,5 +196,4 @@ private struct IngredientRow: View {
     }
     .environment(\.managedObjectContext, context)
     .environment(SaveErrorCenter())
-    .environment(DeletionUndoCenter())
 }

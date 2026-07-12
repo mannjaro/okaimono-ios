@@ -4,7 +4,6 @@ import CoreData
 struct ShoppingListView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveErrorCenter.self) private var saveErrorCenter
-    @Environment(DeletionUndoCenter.self) private var deletionUndoCenter
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \ShoppingList.createdAt, ascending: false)],
@@ -72,26 +71,14 @@ struct ShoppingListView: View {
         withAnimation {
             let list = ShoppingList(context: viewContext)
             list.name = name
-            deletionUndoCenter.savePreservingPendingDeletion(
-                in: viewContext,
-                reportingTo: saveErrorCenter
-            )
+            viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
             newListName = ""
         }
     }
 
     private func deleteLists(offsets: IndexSet) {
-        let targets = offsets.map { lists[$0] }
-        guard !targets.isEmpty else { return }
         withAnimation {
-            deletionUndoCenter.deleteShoppingLists(
-                targets,
-                in: viewContext,
-                message: targets.count == 1
-                    ? "「\(targets[0].name ?? "名前なしのリスト")」を削除しました"
-                    : "\(targets.count)件のリストを削除しました",
-                reportingTo: saveErrorCenter
-            )
+            viewContext.delete(lists, at: offsets, reportingTo: saveErrorCenter)
         }
     }
 }
@@ -100,5 +87,4 @@ struct ShoppingListView: View {
     ShoppingListView()
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
         .environment(SaveErrorCenter())
-        .environment(DeletionUndoCenter())
 }

@@ -27,6 +27,5 @@ struct DetailView: View {
         }())
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
         .environment(SaveErrorCenter())
-        .environment(DeletionUndoCenter())
     }
 }

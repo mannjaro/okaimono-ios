@@ -97,90 +97,9 @@ struct okaimono_appTests {
         #expect(results.first?.id != UUID(uuidString: "00000000-0000-0000-0000-000000000000"))
     }
 
-    @Test func undoListDeletionRestoresCascadeDataAndSaves() throws {
+    @Test func deletingMenuRemovesCascadeIngredients() throws {
         let context = PersistenceController(inMemory: true).container.viewContext
         let errorCenter = SaveErrorCenter()
-        let deletionCenter = DeletionUndoCenter()
-
-        let list = ShoppingList(context: context)
-        list.name = "復元対象"
-        let menu = MenuItem(context: context)
-        menu.name = "カレー"
-        menu.list = list
-        let ingredient = Ingredient(context: context)
-        ingredient.name = "にんじん"
-        ingredient.menu = menu
-        #expect(context.saveIfNeeded())
-
-        deletionCenter.deleteShoppingLists(
-            [list],
-            in: context,
-            message: "削除しました",
-            reportingTo: errorCenter
-        )
-
-        #expect(try context.count(for: ShoppingList.fetchRequest()) == 0)
-        #expect(try context.count(for: MenuItem.fetchRequest()) == 0)
-        #expect(try context.count(for: Ingredient.fetchRequest()) == 0)
-        #expect(deletionCenter.message != nil)
-
-        deletionCenter.undo()
-
-        #expect(try context.count(for: ShoppingList.fetchRequest()) == 1)
-        #expect(try context.count(for: MenuItem.fetchRequest()) == 1)
-        #expect(try context.count(for: Ingredient.fetchRequest()) == 1)
-        #expect(deletionCenter.message == nil)
-        #expect(errorCenter.message == nil)
-    }
-
-    @Test func unrelatedSaveDoesNotCommitPendingListDeletion() throws {
-        let context = PersistenceController(inMemory: true).container.viewContext
-        let errorCenter = SaveErrorCenter()
-        let deletionCenter = DeletionUndoCenter()
-
-        let pendingList = ShoppingList(context: context)
-        pendingList.name = "削除保留"
-        let otherList = ShoppingList(context: context)
-        otherList.name = "別リスト"
-        let menu = MenuItem(context: context)
-        menu.name = "献立"
-        menu.list = otherList
-        let ingredient = Ingredient(context: context)
-        ingredient.name = "材料"
-        ingredient.isChecked = false
-        ingredient.menu = menu
-        #expect(context.saveIfNeeded())
-
-        deletionCenter.deleteShoppingLists(
-            [pendingList],
-            in: context,
-            message: "削除しました",
-            reportingTo: errorCenter
-        )
-        #expect(deletionCenter.message != nil)
-
-        ingredient.isChecked = true
-        #expect(
-            deletionCenter.savePreservingPendingDeletion(
-                in: context,
-                reportingTo: errorCenter
-            )
-        )
-        #expect(deletionCenter.message != nil)
-
-        context.reset()
-        let lists = try context.fetch(ShoppingList.fetchRequest())
-        #expect(lists.count == 2)
-        #expect(lists.contains { $0.name == "削除保留" })
-
-        let savedIngredient = try context.fetch(Ingredient.fetchRequest()).first
-        #expect(savedIngredient?.isChecked == true)
-    }
-
-    @Test func committedMenuDeletionRemovesCascadeData() throws {
-        let context = PersistenceController(inMemory: true).container.viewContext
-        let errorCenter = SaveErrorCenter()
-        let deletionCenter = DeletionUndoCenter()
 
         let list = ShoppingList(context: context)
         list.name = "保存対象"
@@ -192,19 +111,13 @@ struct okaimono_appTests {
         ingredient.menu = menu
         #expect(context.saveIfNeeded())
 
-        deletionCenter.deleteMenu(
-            menu,
-            in: context,
-            message: "削除しました",
-            reportingTo: errorCenter
-        )
-        deletionCenter.commitPendingDeletion()
+        context.delete(menu)
+        #expect(context.saveIfNeeded(reportingTo: errorCenter))
 
         context.reset()
         #expect(try context.count(for: ShoppingList.fetchRequest()) == 1)
         #expect(try context.count(for: MenuItem.fetchRequest()) == 0)
         #expect(try context.count(for: Ingredient.fetchRequest()) == 0)
-        #expect(deletionCenter.message == nil)
         #expect(errorCenter.message == nil)
     }
 

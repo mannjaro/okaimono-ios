@@ -4,7 +4,6 @@ import CoreData
 struct MenuItemList: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveErrorCenter.self) private var saveErrorCenter
-    @Environment(DeletionUndoCenter.self) private var deletionUndoCenter
 
     let list: ShoppingList
 
@@ -97,10 +96,7 @@ struct MenuItemList: View {
         let trimmed = editingName.trimmingCharacters(in: .whitespacesAndNewlines)
         editingMenu.name = trimmed.isEmpty ? editingMenu.name : trimmed
         self.editingMenu = nil
-        deletionUndoCenter.savePreservingPendingDeletion(
-            in: viewContext,
-            reportingTo: saveErrorCenter
-        )
+        viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
     }
 
     private func addMenu() {
@@ -112,10 +108,7 @@ struct MenuItemList: View {
         menu.list = list
 
         newItemName = ""
-        deletionUndoCenter.savePreservingPendingDeletion(
-            in: viewContext,
-            reportingTo: saveErrorCenter
-        )
+        viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
     }
 
     private func deleteMenu(_ menu: MenuItem) {
@@ -126,12 +119,8 @@ struct MenuItemList: View {
             collapsedMenuIDs.remove(id)
         }
         withAnimation {
-            deletionUndoCenter.deleteMenu(
-                menu,
-                in: viewContext,
-                message: "「\(menu.name ?? "名前なしの献立")」を削除しました",
-                reportingTo: saveErrorCenter
-            )
+            viewContext.delete(menu)
+            viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
         }
     }
 }

@@ -5,7 +5,6 @@ import CoreData
 struct okaimonoApp: App {
     @State private var persistence = PersistenceController.shared
     @State private var saveErrorCenter = SaveErrorCenter()
-    @State private var deletionUndoCenter = DeletionUndoCenter()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -25,29 +24,6 @@ struct okaimonoApp: App {
                 }
             }
             .environment(saveErrorCenter)
-            .environment(deletionUndoCenter)
-            .overlay(alignment: .bottom) {
-                if let message = deletionUndoCenter.message {
-                    HStack(spacing: 16) {
-                        Text(message)
-                            .lineLimit(2)
-                        Spacer()
-                        Button("取り消す") {
-                            withAnimation {
-                                deletionUndoCenter.undo()
-                            }
-                        }
-                        .fontWeight(.semibold)
-                        .accessibilityIdentifier("undo-delete-button")
-                    }
-                    .padding()
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-                    .shadow(radius: 4)
-                    .padding()
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-            .animation(.default, value: deletionUndoCenter.message)
             .alert(
                 "保存エラー",
                 isPresented: Binding(
@@ -65,7 +41,6 @@ struct okaimonoApp: App {
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .background else { return }
             guard persistence.isStoreLoaded else { return }
-            deletionUndoCenter.commitPendingDeletion()
             persistence.container.viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
         }
     }
