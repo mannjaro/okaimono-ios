@@ -65,11 +65,7 @@ final class PersistenceController {
             cloudKitEnabled: cloudKitEnabled
         )
         configureViewContext()
-        if inMemory {
-            loadInMemoryStore()
-        } else {
-            loadStores()
-        }
+        loadStores()
     }
     
     private static func configureDescription(
@@ -111,7 +107,7 @@ final class PersistenceController {
             managedObjectModel: managedObjectModel
         )
 
-        guard !inMemory, let privateDescription = container.persistentStoreDescriptions.first else {
+        guard let privateDescription = container.persistentStoreDescriptions.first else {
             return container
         }
         
@@ -129,16 +125,24 @@ final class PersistenceController {
         
         let sharedDescription = NSPersistentStoreDescription(url: sharedURL)
         
+        if inMemory {
+            privateDescription.type = NSInMemoryStoreType
+            sharedDescription.type = NSInMemoryStoreType
+            
+            privateDescription.url = URL(fileURLWithPath: "/okaimono_app.sqlite")
+            sharedDescription.url = URL(fileURLWithPath: "/okaimono_app_shared.sqlite")
+        }
+        
         // configure private
         configureDescription(
             description: privateDescription,
-            cloudKitEnabled: cloudKitEnabled,
+            cloudKitEnabled: cloudKitEnabled && !inMemory,
             scope: .private,
         )
         // configure shared
         configureDescription(
             description: sharedDescription,
-            cloudKitEnabled: cloudKitEnabled,
+            cloudKitEnabled: cloudKitEnabled && !inMemory,
             scope: .shared
         )
                 
@@ -147,21 +151,6 @@ final class PersistenceController {
             sharedDescription
         ]
         return container
-    }
-
-    private func loadInMemoryStore() {
-        do {
-            try container.persistentStoreCoordinator.addPersistentStore(
-                ofType: NSInMemoryStoreType,
-                configurationName: nil,
-                at: nil
-            )
-            storeLoadError = nil
-            isStoreLoaded = true
-        } catch {
-            storeLoadError = error
-            isStoreLoaded = false
-        }
     }
 
     private func loadStores() {
@@ -211,19 +200,16 @@ final class PersistenceController {
     func retryLoadingStores() {
         storeLoadError = nil
         isStoreLoaded = false
-
-        if inMemory {
-            if container.persistentStoreCoordinator.persistentStores.isEmpty {
-                loadInMemoryStore()
-            } else {
-                isStoreLoaded = true
-            }
-        } else if container.persistentStoreCoordinator.persistentStores.isEmpty {
-            // 同じコンテナで再試行し、CloudKitの同期ハンドラを二重登録しない。
-            loadStores()
-        } else {
+        
+        let expected = container.persistentStoreDescriptions.count
+        let loaded = container.persistentStoreCoordinator.persistentStores.count
+        
+        guard loaded < expected else {
             isStoreLoaded = true
+            return
         }
+        loadStores()
+        
     }
 
     /// ユーザーが明示的に選んだ場合だけ、端末内のストアを破棄して再作成する。
