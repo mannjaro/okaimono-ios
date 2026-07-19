@@ -200,28 +200,16 @@ final class PersistenceController {
     func retryLoadingStores() {
         storeLoadError = nil
         isStoreLoaded = false
-<<<<<<< HEAD
 
         let expected = container.persistentStoreDescriptions.count
         let loaded = container.persistentStoreCoordinator.persistentStores.count
 
-=======
-
-        let expected = container.persistentStoreDescriptions.count
-        let loaded = container.persistentStoreCoordinator.persistentStores.count
-
->>>>>>> 17bb4b960ccb9ab02785afdfc31311eb8ca48d27
         guard loaded < expected else {
             isStoreLoaded = true
             return
         }
-<<<<<<< HEAD
-        // 同じコンテナで再試行し、CloudKitの同期ハンドラを二重登録しない。
-        loadStores()
-=======
         loadStores()
 
->>>>>>> 17bb4b960ccb9ab02785afdfc31311eb8ca48d27
     }
 
     /// ユーザーが明示的に選んだ場合だけ、端末内のストアを破棄して再作成する。
