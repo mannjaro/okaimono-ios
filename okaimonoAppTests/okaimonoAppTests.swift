@@ -200,8 +200,8 @@ struct okaimono_appTests {
             .appending(path: "okaimono-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let storeURL = directory.appending(path: "Test.sqlite")
-        // Act
         
+        // Act
         let controller = PersistenceController(
             storeURL: storeURL,
             cloudKitEnabled: false,

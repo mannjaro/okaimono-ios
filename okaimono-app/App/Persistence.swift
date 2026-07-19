@@ -1,6 +1,5 @@
 import CoreData
 import CloudKit
-import Foundation
 
 @MainActor
 @Observable
@@ -20,7 +19,7 @@ final class PersistenceController {
             || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     )
 
-    static var preview: PersistenceController = {
+    static let preview: PersistenceController = {
         let result = PersistenceController(inMemory: true)
         let context = result.container.viewContext
         for i in 1...2 {
@@ -65,25 +64,21 @@ final class PersistenceController {
             cloudKitEnabled: cloudKitEnabled
         )
         configureViewContext()
-        if inMemory {
-            loadInMemoryStore()
-        } else {
-            loadStores()
-        }
+        loadStores()
     }
-    
+
     private static func configureDescription(
         description: NSPersistentStoreDescription,
         cloudKitEnabled: Bool,
-        scope: CKDatabase.Scope,
+        scope: CKDatabase.Scope
     ) {
         // 属性のdefault追加など、軽量なモデル差分は自動移行する。
         description.shouldMigrateStoreAutomatically = true
         description.shouldInferMappingModelAutomatically = true
-        
+
         if cloudKitEnabled {
             let options = NSPersistentCloudKitContainerOptions(
-                containerIdentifier: "iCloud.mannjaro.okaimono-app",
+                containerIdentifier: "iCloud.mannjaro.okaimono-app"
             )
             description.setOption(
                 true as NSNumber,
@@ -95,7 +90,6 @@ final class PersistenceController {
             )
             options.databaseScope = scope
             description.cloudKitContainerOptions = options
-            
         } else {
             description.cloudKitContainerOptions = nil
         }
@@ -111,10 +105,10 @@ final class PersistenceController {
             managedObjectModel: managedObjectModel
         )
 
-        guard !inMemory, let privateDescription = container.persistentStoreDescriptions.first else {
+        guard let privateDescription = container.persistentStoreDescriptions.first else {
             return container
         }
-        
+
         if let storeURL {
             privateDescription.url = storeURL
         }
@@ -126,42 +120,35 @@ final class PersistenceController {
         let sharedURL = privateURL
             .deletingLastPathComponent()
             .appendingPathComponent("okaimono_app_shared.sqlite")
-        
+
         let sharedDescription = NSPersistentStoreDescription(url: sharedURL)
-        
+
+        if inMemory {
+            privateDescription.type = NSInMemoryStoreType
+            sharedDescription.type = NSInMemoryStoreType
+
+            privateDescription.url = URL(fileURLWithPath: "/okaimono_app.sqlite")
+            sharedDescription.url = URL(fileURLWithPath: "/okaimono_app_shared.sqlite")
+        }
+
         // configure private
         configureDescription(
             description: privateDescription,
-            cloudKitEnabled: cloudKitEnabled,
-            scope: .private,
+            cloudKitEnabled: cloudKitEnabled && !inMemory,
+            scope: .private
         )
         // configure shared
         configureDescription(
             description: sharedDescription,
-            cloudKitEnabled: cloudKitEnabled,
+            cloudKitEnabled: cloudKitEnabled && !inMemory,
             scope: .shared
         )
-                
+
         container.persistentStoreDescriptions = [
             privateDescription,
             sharedDescription
         ]
         return container
-    }
-
-    private func loadInMemoryStore() {
-        do {
-            try container.persistentStoreCoordinator.addPersistentStore(
-                ofType: NSInMemoryStoreType,
-                configurationName: nil,
-                at: nil
-            )
-            storeLoadError = nil
-            isStoreLoaded = true
-        } catch {
-            storeLoadError = error
-            isStoreLoaded = false
-        }
     }
 
     private func loadStores() {
@@ -176,10 +163,10 @@ final class PersistenceController {
                     self.storeLoadError = error
                     self.isStoreLoaded = false
                 }
-                
+
                 let store = self.container.persistentStoreCoordinator.persistentStores
                     .first { $0.url == description.url }
-                
+
                 // CloudKit無効時はdatabaseScopeがnilになるため、ファイル名でshared側を判別する
                 let isShared = description.cloudKitContainerOptions?.databaseScope == .shared
                     || description.url?.lastPathComponent.contains("_shared") == true
@@ -189,7 +176,7 @@ final class PersistenceController {
                 } else {
                     self.privatePersistentStore = store
                 }
-                
+
                 if self.privatePersistentStore != nil,
                    self.sharedPersistentStore != nil {
                     self.storeLoadError = nil
@@ -200,30 +187,28 @@ final class PersistenceController {
     }
 
     private func configureViewContext() {
-        container.viewContext.automaticallyMergesChangesFromParent = true
+        let context = container.viewContext
+        context.automaticallyMergesChangesFromParent = true
         // インライン編集中の未保存入力を、リモート競合で黙って潰さない。
-        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-        container.viewContext.shouldDeleteInaccessibleFaults = true
-        container.viewContext.name = "viewContext"
-        container.viewContext.transactionAuthor = "app"
+        context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        context.shouldDeleteInaccessibleFaults = true
+        context.name = "viewContext"
+        context.transactionAuthor = "app"
     }
 
     func retryLoadingStores() {
         storeLoadError = nil
         isStoreLoaded = false
 
-        if inMemory {
-            if container.persistentStoreCoordinator.persistentStores.isEmpty {
-                loadInMemoryStore()
-            } else {
-                isStoreLoaded = true
-            }
-        } else if container.persistentStoreCoordinator.persistentStores.isEmpty {
-            // 同じコンテナで再試行し、CloudKitの同期ハンドラを二重登録しない。
-            loadStores()
-        } else {
+        let expected = container.persistentStoreDescriptions.count
+        let loaded = container.persistentStoreCoordinator.persistentStores.count
+
+        guard loaded < expected else {
             isStoreLoaded = true
+            return
         }
+        // 同じコンテナで再試行し、CloudKitの同期ハンドラを二重登録しない。
+        loadStores()
     }
 
     /// ユーザーが明示的に選んだ場合だけ、端末内のストアを破棄して再作成する。
@@ -247,16 +232,14 @@ final class PersistenceController {
                 try coordinator.remove(store)
             }
 
-            if let url {
-                do {
-                    try coordinator.destroyPersistentStore(
-                        at: url,
-                        ofType: NSSQLiteStoreType,
-                        options: description?.options
-                    )
-                } catch {
-                    try Self.removeLocalStoreFiles(at: url)
-                }
+            do {
+                try coordinator.destroyPersistentStore(
+                    at: url,
+                    ofType: NSSQLiteStoreType,
+                    options: description?.options
+                )
+            } catch {
+                try Self.removeLocalStoreFiles(at: url)
             }
 
             // destroy後も同じコンテナを使い、CloudKit同期ハンドラの
@@ -268,9 +251,8 @@ final class PersistenceController {
         }
     }
 
-    private static func defaultStoreURL() -> URL? {
-        let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-        return folder?.appendingPathComponent("okaimono_app.sqlite")
+    private static func defaultStoreURL() -> URL {
+        URL.applicationSupportDirectory.appendingPathComponent("okaimono_app.sqlite")
     }
 
     private static func removeLocalStoreFiles(at url: URL) throws {
@@ -278,9 +260,7 @@ final class PersistenceController {
         let candidates = [
             url,
             URL(fileURLWithPath: url.path + "-wal"),
-            URL(fileURLWithPath: url.path + "-shm"),
-            url.deletingPathExtension().appendingPathExtension("sqlite-wal"),
-            url.deletingPathExtension().appendingPathExtension("sqlite-shm")
+            URL(fileURLWithPath: url.path + "-shm")
         ]
         for candidate in candidates where fileManager.fileExists(atPath: candidate.path) {
             try fileManager.removeItem(at: candidate)
