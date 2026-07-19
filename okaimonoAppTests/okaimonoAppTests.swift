@@ -193,4 +193,27 @@ struct okaimono_appTests {
         }
         return false
     }
+    
+    @Test func storeLoadWhenCKDisabled() async throws {
+        // Arrange
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "okaimono-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let storeURL = directory.appending(path: "Test.sqlite")
+        // Act
+        
+        let controller = PersistenceController(
+            storeURL: storeURL,
+            cloudKitEnabled: false,
+        )
+        
+        // Assert
+        #expect(await waitUntilLoaded(controller))
+        #expect(controller.isStoreLoaded == true)
+        #expect(controller.privatePersistentStore != nil)
+        #expect(controller.sharedPersistentStore != nil)
+        
+        // Clean up
+        try? FileManager.default.removeItem(at: directory)
+    }
 }

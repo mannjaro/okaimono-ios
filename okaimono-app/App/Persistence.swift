@@ -1,4 +1,5 @@
 import CoreData
+import CloudKit
 import Foundation
 
 @MainActor
@@ -9,7 +10,7 @@ final class PersistenceController {
             let modelURL = Bundle.main.url(forResource: "okaimono_app", withExtension: "momd"),
             let model = NSManagedObjectModel(contentsOf: modelURL)
         else {
-            preconditionFailure("Core Dataモデルを読み込めませんでした。")
+            preconditionFailure("Failed to load Core Data model.")
         }
         return model
     }()
@@ -24,15 +25,15 @@ final class PersistenceController {
         let context = result.container.viewContext
         for i in 1...2 {
             let list = ShoppingList(context: context)
-            list.name = "買い物リスト \(i)"
+            list.name = "Shopping list \(i)"
 
             let menu = MenuItem(context: context)
-            menu.name = "献立 \(i)"
+            menu.name = "Menu \(i)"
             menu.list = list
 
             for j in 1...2 {
                 let ingredient = Ingredient(context: context)
-                ingredient.name = "材料 \(j)"
+                ingredient.name = "Ingredient \(j)"
                 ingredient.quantity = "100g"
                 ingredient.menu = menu
             }
@@ -41,9 +42,11 @@ final class PersistenceController {
         return result
     }()
 
-    private(set) var container: NSPersistentCloudKitContainer
+    let container: NSPersistentCloudKitContainer
     private(set) var storeLoadError: Error?
     private(set) var isStoreLoaded = false
+    private(set) var privatePersistentStore: NSPersistentStore?
+    private(set) var sharedPersistentStore: NSPersistentStore?
     private let inMemory: Bool
     private let storeURL: URL?
     private let cloudKitEnabled: Bool
@@ -65,7 +68,36 @@ final class PersistenceController {
         if inMemory {
             loadInMemoryStore()
         } else {
-            loadStores(for: container)
+            loadStores()
+        }
+    }
+    
+    private static func configureDescription(
+        description: NSPersistentStoreDescription,
+        cloudKitEnabled: Bool,
+        scope: CKDatabase.Scope,
+    ) {
+        // 属性のdefault追加など、軽量なモデル差分は自動移行する。
+        description.shouldMigrateStoreAutomatically = true
+        description.shouldInferMappingModelAutomatically = true
+        
+        if cloudKitEnabled {
+            let options = NSPersistentCloudKitContainerOptions(
+                containerIdentifier: "iCloud.mannjaro.okaimono-app",
+            )
+            description.setOption(
+                true as NSNumber,
+                forKey: NSPersistentHistoryTrackingKey
+            )
+            description.setOption(
+                true as NSNumber,
+                forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey
+            )
+            options.databaseScope = scope
+            description.cloudKitContainerOptions = options
+            
+        } else {
+            description.cloudKitContainerOptions = nil
         }
     }
 
@@ -79,35 +111,41 @@ final class PersistenceController {
             managedObjectModel: managedObjectModel
         )
 
-        guard !inMemory, let description = container.persistentStoreDescriptions.first else {
+        guard !inMemory, let privateDescription = container.persistentStoreDescriptions.first else {
             return container
         }
-
+        
         if let storeURL {
-            description.url = storeURL
+            privateDescription.url = storeURL
         }
-
-        // 属性のdefault追加など、軽量なモデル差分は自動移行する。
-        description.shouldMigrateStoreAutomatically = true
-        description.shouldInferMappingModelAutomatically = true
-
-        if cloudKitEnabled {
-            let options = NSPersistentCloudKitContainerOptions(
-                containerIdentifier: "iCloud.mannjaro.okaimono-app"
-            )
-            description.cloudKitContainerOptions = options
-            description.setOption(
-                true as NSNumber,
-                forKey: NSPersistentHistoryTrackingKey
-            )
-            description.setOption(
-                true as NSNumber,
-                forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey
-            )
-        } else {
-            description.cloudKitContainerOptions = nil
+        // shared ファイルを置くためのURLを定める
+        guard let privateURL = privateDescription.url else {
+            return container
         }
-
+        // shared description の作成
+        let sharedURL = privateURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("okaimono_app_shared.sqlite")
+        
+        let sharedDescription = NSPersistentStoreDescription(url: sharedURL)
+        
+        // configure private
+        configureDescription(
+            description: privateDescription,
+            cloudKitEnabled: cloudKitEnabled,
+            scope: .private,
+        )
+        // configure shared
+        configureDescription(
+            description: sharedDescription,
+            cloudKitEnabled: cloudKitEnabled,
+            scope: .shared
+        )
+                
+        container.persistentStoreDescriptions = [
+            privateDescription,
+            sharedDescription
+        ]
         return container
     }
 
@@ -126,14 +164,34 @@ final class PersistenceController {
         }
     }
 
-    private func loadStores(for candidate: NSPersistentCloudKitContainer) {
-        candidate.loadPersistentStores { [weak self, weak candidate] _, error in
+    private func loadStores() {
+        privatePersistentStore = nil
+        sharedPersistentStore = nil
+        isStoreLoaded = false
+        storeLoadError = nil
+
+        container.loadPersistentStores { description, error in
             Task { @MainActor in
-                guard let self, let candidate, self.container === candidate else { return }
                 if let error {
                     self.storeLoadError = error
                     self.isStoreLoaded = false
+                }
+                
+                let store = self.container.persistentStoreCoordinator.persistentStores
+                    .first { $0.url == description.url }
+                
+                // CloudKit無効時はdatabaseScopeがnilになるため、ファイル名でshared側を判別する
+                let isShared = description.cloudKitContainerOptions?.databaseScope == .shared
+                    || description.url?.lastPathComponent.contains("_shared") == true
+
+                if isShared {
+                    self.sharedPersistentStore = store
                 } else {
+                    self.privatePersistentStore = store
+                }
+                
+                if self.privatePersistentStore != nil,
+                   self.sharedPersistentStore != nil {
                     self.storeLoadError = nil
                     self.isStoreLoaded = true
                 }
@@ -162,7 +220,7 @@ final class PersistenceController {
             }
         } else if container.persistentStoreCoordinator.persistentStores.isEmpty {
             // 同じコンテナで再試行し、CloudKitの同期ハンドラを二重登録しない。
-            loadStores(for: container)
+            loadStores()
         } else {
             isStoreLoaded = true
         }
@@ -176,16 +234,15 @@ final class PersistenceController {
         storeLoadError = nil
         isStoreLoaded = false
 
-        let previousContainer = container
-        let description = previousContainer.persistentStoreDescriptions.first
+        let description = container.persistentStoreDescriptions.first
         let url = description?.url ?? storeURL ?? Self.defaultStoreURL()
 
-        previousContainer.viewContext.performAndWait {
-            previousContainer.viewContext.reset()
+        container.viewContext.performAndWait {
+            container.viewContext.reset()
         }
 
         do {
-            let coordinator = previousContainer.persistentStoreCoordinator
+            let coordinator = container.persistentStoreCoordinator
             for store in coordinator.persistentStores {
                 try coordinator.remove(store)
             }
@@ -204,7 +261,7 @@ final class PersistenceController {
 
             // destroy後も同じコンテナを使い、CloudKit同期ハンドラの
             // 非同期tearDownと新規登録が競合しないようにする。
-            loadStores(for: previousContainer)
+            loadStores()
         } catch {
             storeLoadError = error
             isStoreLoaded = false

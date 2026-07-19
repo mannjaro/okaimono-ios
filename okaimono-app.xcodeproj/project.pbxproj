@@ -33,6 +33,7 @@
 		BBAFF2522FE64C350086AC15 /* Exceptions for "okaimono-app" folder in "okaimono-app" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Assets.xcassets,
 				Info.plist,
 			);
 			target = BBAFF22E2FE64C330086AC15 /* okaimono-app */;
