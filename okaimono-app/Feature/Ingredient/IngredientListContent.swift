@@ -100,18 +100,13 @@ struct IngredientListContent: View {
     }
 
     private func addIngredient() {
-        let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return }
-        let qty = newQuantity.trimmingCharacters(in: .whitespacesAndNewlines)
-        newName = ""
-        newQuantity = ""
+        guard let draft = IngredientDraft.make(from: newName, qty: newQuantity) else { return }
         withAnimation {
-            let item = Ingredient(context: viewContext)
-            item.name = name
-            item.quantity = qty.isEmpty ? nil : qty
-            item.isChecked = false
-            item.menu = menu
-            viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
+            guard Ingredient.insert(from: draft, into: menu, context: viewContext) != nil else { return }
+        }
+        if viewContext.saveIfNeeded(reportingTo: saveErrorCenter) {
+            newName = ""
+            newQuantity = ""
         }
     }
 

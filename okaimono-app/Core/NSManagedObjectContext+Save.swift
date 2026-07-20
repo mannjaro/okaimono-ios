@@ -14,7 +14,7 @@ extension NSManagedObjectContext {
             return false
         }
     }
-
+    
     // T は NSManagedObject を継承している型に限定
     func delete<T: NSManagedObject>(
         _ objects: FetchedResults<T>,

@@ -100,16 +100,12 @@ struct MenuItemList: View {
     }
 
     private func addMenu() {
-        let name = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return }
-
-        let menu = MenuItem(context: viewContext)
-        menu.name = name
-        menu.list = list
-        menu.isArchived = false
-
-        newItemName = ""
-        viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
+        guard let draft = MenuItemDraft.make(from: newItemName) else { return }
+        guard MenuItem.insert(from: draft, into: list, context: viewContext) != nil else { return }
+        
+        if viewContext.saveIfNeeded(reportingTo: saveErrorCenter) {
+            newItemName = ""
+        }
     }
 
     private func deleteMenu(_ menu: MenuItem) {

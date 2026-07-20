@@ -75,4 +75,5 @@ private extension PersistenceErrorView {
         onRetry: {},
         onReset: {}
     )
+    .environment(PersistenceController.preview)
 }
