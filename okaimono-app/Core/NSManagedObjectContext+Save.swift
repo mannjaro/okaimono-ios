@@ -25,4 +25,12 @@ extension NSManagedObjectContext {
         offsets.map { objects[$0] }.forEach(delete)
         saveIfNeeded(reportingTo: errorCenter)
     }
+    
+    /// object を parent と同じ永続ストアへ割り当てる。parent が未保存などでストアが取れない場合は false。
+    @discardableResult
+    func assign(_ object: NSManagedObject, toSameStoreAs parent: NSManagedObject) -> Bool {
+        guard let store = parent.objectID.persistentStore else { return false }
+        assign(object, to: store)
+        return true
+    }
 }

@@ -15,10 +15,8 @@ extension MenuItem {
         into list: ShoppingList,
         context: NSManagedObjectContext
     ) -> MenuItem? {
-        guard let store = list.objectID.persistentStore else { return nil }
-        
         let menu = MenuItem(context: context)
-        context.assign(menu, to: store)
+        guard context.assign(menu, toSameStoreAs: list) else { return nil }
         menu.name = draft.name
         menu.list = list
         menu.isArchived = false

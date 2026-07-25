@@ -15,10 +15,8 @@ extension Ingredient {
         into menu: MenuItem,
         context: NSManagedObjectContext
     ) -> Ingredient? {
-        guard let store = menu.objectID.persistentStore else { return nil }
         let ingredient = Ingredient(context: context)
-        context.assign(ingredient, to: store)
-        
+        guard context.assign(ingredient, toSameStoreAs: menu) else { return nil }
         ingredient.name = draft.name
         ingredient.quantity = draft.quantity
         ingredient.isChecked = false
