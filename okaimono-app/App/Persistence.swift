@@ -78,7 +78,7 @@ final class PersistenceController {
 
         if cloudKitEnabled {
             let options = NSPersistentCloudKitContainerOptions(
-                containerIdentifier: "iCloud.mannjaro.okaimono-app"
+                containerIdentifier: CloudKitConfiguration.containerIdentifier
             )
             description.setOption(
                 true as NSNumber,

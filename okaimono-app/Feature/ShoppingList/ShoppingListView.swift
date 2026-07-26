@@ -4,6 +4,7 @@ import CoreData
 struct ShoppingListView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveErrorCenter.self) private var saveErrorCenter
+    @Environment(PersistenceController.self) private var persistence
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \ShoppingList.createdAt, ascending: false)],
@@ -68,8 +69,11 @@ struct ShoppingListView: View {
     private func addList() {
         let name = newListName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
+        guard let store = persistence.privatePersistentStore else { return }
+        
         withAnimation {
             let list = ShoppingList(context: viewContext)
+            viewContext.assign(list, to: store)
             list.name = name
             viewContext.saveIfNeeded(reportingTo: saveErrorCenter)
             newListName = ""
@@ -86,5 +90,6 @@ struct ShoppingListView: View {
 #Preview {
     ShoppingListView()
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .environment(PersistenceController.preview)
         .environment(SaveErrorCenter())
 }

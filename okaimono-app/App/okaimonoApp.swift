@@ -24,6 +24,7 @@ struct okaimonoApp: App {
                 }
             }
             .environment(saveErrorCenter)
+            .environment(persistence)
             .alert(
                 "保存エラー",
                 isPresented: Binding(
