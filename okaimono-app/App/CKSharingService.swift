@@ -35,8 +35,10 @@ final class CKSharingService {
         let existingShares = try persistence.container.fetchShares(matching: [list.objectID])
         guard let share = existingShares[list.objectID] else {
             let (_, share, container) = try await persistence.container.share([list], to: nil)
+            share[CKShare.SystemFieldKey.title] = list.name ?? "お買い物リスト"
             return (share, container)
         }
+        share[CKShare.SystemFieldKey.title] = list.name ?? "お買い物リスト"
         let container = ckContainer
         return (share, container)
     }

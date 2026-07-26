@@ -28,12 +28,14 @@ struct CKSharingServiceTests {
     @Test func fetchOrCreateShareThrowsForSharedStoreList() async throws {
         // Arrange
         let persistence = PersistenceController(inMemory: true)
-        #expect(await waitUntilLoaded(persistence))
+        let didLoad = await waitUntilLoaded(persistence)
+        try #require(didLoad)
+        let sharedStore = try #require(persistence.sharedPersistentStore)
 
         let context = persistence.container.viewContext
         let list = ShoppingList(context: context)
         list.name = "Saved list"
-        context.assign(list, to: persistence.sharedPersistentStore!)
+        context.assign(list, to: sharedStore)
         #expect(context.saveIfNeeded())
 
         let service = CKSharingService(persistence: persistence)
