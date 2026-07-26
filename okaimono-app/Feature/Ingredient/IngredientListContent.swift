@@ -40,12 +40,6 @@ struct IngredientListContent: View {
     }
 
     var body: some View {
-        if ingredients.isEmpty {
-            Text("材料がありません。下から追加できます。")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("empty-ingredients-label")
-        }
 
         ForEach(ingredients) { ingredient in
             IngredientRow(
@@ -61,25 +55,16 @@ struct IngredientListContent: View {
             HStack {
                 TextField("材料を追加", text: $newName)
                     .focused($focusedField, equals: .name)
-                    .onSubmit {
-                        addIngredient()
-                        focusedField = .name
-                    }
+                    .onSubmit(submitIngredient)
                     .accessibilityIdentifier("add-ingredient-name-field")
                 TextField("分量", text: $newQuantity)
                     .focused($focusedField, equals: .quantity)
                     .frame(width: 64)
                     .multilineTextAlignment(.trailing)
                     .foregroundColor(.secondary)
-                    .onSubmit {
-                        addIngredient()
-                        focusedField = .name
-                    }
+                    .onSubmit(submitIngredient)
                     .accessibilityIdentifier("add-ingredient-quantity-field")
             }
-
-            Button("材料を追加する", action: addIngredient)
-                .accessibilityIdentifier("confirm-add-ingredient-button")
 
             if !suggestions.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -96,18 +81,29 @@ struct IngredientListContent: View {
                 }
             }
         }
-        .padding(.vertical, 4)
     }
 
-    private func addIngredient() {
-        guard let draft = IngredientDraft.make(from: newName, qty: newQuantity) else { return }
+    /// Returnキーでの送信。追加できたときだけ次の入力へフォーカスを戻し、
+    /// 空欄のまま送信されたらフォーカスを外してキーボードを閉じる。
+    private func submitIngredient() {
+        if addIngredient() {
+            focusedField = .name
+        } else {
+            focusedField = nil
+        }
+    }
+
+    @discardableResult
+    private func addIngredient() -> Bool {
+        guard let draft = IngredientDraft.make(from: newName, qty: newQuantity) else { return false }
+        var inserted = false
         withAnimation {
-            guard Ingredient.insert(from: draft, into: menu, context: viewContext) != nil else { return }
+            inserted = Ingredient.insert(from: draft, into: menu, context: viewContext) != nil
         }
-        if viewContext.saveIfNeeded(reportingTo: saveErrorCenter) {
-            newName = ""
-            newQuantity = ""
-        }
+        guard inserted, viewContext.saveIfNeeded(reportingTo: saveErrorCenter) else { return false }
+        newName = ""
+        newQuantity = ""
+        return true
     }
 
     private func deleteIngredient(_ ingredient: Ingredient) {
