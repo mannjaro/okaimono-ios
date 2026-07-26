@@ -3,6 +3,7 @@ import CoreData
 
 @main
 struct okaimonoApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var persistence = PersistenceController.shared
     @State private var saveErrorCenter = SaveErrorCenter()
     @Environment(\.scenePhase) private var scenePhase

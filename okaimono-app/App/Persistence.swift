@@ -1,6 +1,11 @@
 import CoreData
 import CloudKit
 
+/// CKShare.Metadata はテストで生成できない(initが例外を投げる)ため、
+/// プロトコル越しに扱い、テストではスタブに差し替えられるようにする。
+protocol ShareInvitationMetadata {}
+extension CKShare.Metadata: ShareInvitationMetadata {}
+
 @MainActor
 @Observable
 final class PersistenceController {
@@ -46,6 +51,9 @@ final class PersistenceController {
     private(set) var isStoreLoaded = false
     private(set) var privatePersistentStore: NSPersistentStore?
     private(set) var sharedPersistentStore: NSPersistentStore?
+    private(set) var pendingShareMetadata: [any ShareInvitationMetadata] = []
+    /// テストでCloudKit呼び出しを差し替えるための注入口。nilなら実際のacceptを行う。
+    var shareInvitationAcceptor: (([any ShareInvitationMetadata], NSPersistentStore) -> Void)?
     private let inMemory: Bool
     private let storeURL: URL?
     private let cloudKitEnabled: Bool
@@ -182,6 +190,7 @@ final class PersistenceController {
                    self.sharedPersistentStore != nil {
                     self.storeLoadError = nil
                     self.isStoreLoaded = true
+                    self.processPendingShareInvitationsIfReady()
                 }
             }
         }
@@ -206,10 +215,37 @@ final class PersistenceController {
 
         guard loaded < expected else {
             isStoreLoaded = true
+            processPendingShareInvitationsIfReady()
             return
         }
         loadStores()
 
+    }
+
+    /// 共有リンクから受け取った招待を受け入れる。
+    /// 起動直後などストア未ロードのときは保留し、ロード完了後にまとめて処理する。
+    func acceptShareInvitation(_ metadata: any ShareInvitationMetadata) {
+        pendingShareMetadata.append(metadata)
+        processPendingShareInvitationsIfReady()
+    }
+
+    private func processPendingShareInvitationsIfReady() {
+        guard isStoreLoaded, let sharedStore = sharedPersistentStore else { return }
+        let metadata = pendingShareMetadata
+        pendingShareMetadata.removeAll()
+        guard !metadata.isEmpty else { return }
+
+        if let acceptor = shareInvitationAcceptor {
+            acceptor(metadata, sharedStore)
+            return
+        }
+        let ckMetadata = metadata.compactMap { $0 as? CKShare.Metadata }
+        guard !ckMetadata.isEmpty else { return }
+        container.acceptShareInvitations(from: ckMetadata, into: sharedStore) { _, error in
+            if let error {
+                print("共有招待の受け入れに失敗しました: \(error.localizedDescription)")
+            }
+        }
     }
 
     /// ユーザーが明示的に選んだ場合だけ、端末内のストアを破棄して再作成する。
