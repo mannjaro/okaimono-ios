@@ -4,7 +4,20 @@ import SwiftUI
 
 /// 共有済みリストの参加者表示・管理(SWCollaborationView)をSwiftUIから使うためのラッパー。
 /// タップで開くポップオーバーに、システム提供の管理画面へのManageボタンが付く。
-struct CollaborationView: UIViewRepresentable {
+struct CollaborationView: View {
+    let share: CKShare
+    let container: CKContainer
+
+    var body: some View {
+        // SWCollaborationViewはNSItemProviderを初期化時にしか受け取れず、
+        // あとから差し替えられない。CKShareが更新されたらViewごと作り直して
+        // 古いshareを握り続けないようにする。
+        CollaborationViewRepresentable(share: share, container: container)
+            .id(share.recordChangeTag ?? share.recordID.recordName)
+    }
+}
+
+private struct CollaborationViewRepresentable: UIViewRepresentable {
     let share: CKShare
     let container: CKContainer
 
