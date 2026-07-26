@@ -63,6 +63,7 @@ struct MenuItemList: View {
                     .accessibilityIdentifier("confirm-add-menu-button")
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle(list.name ?? "リスト")
     }
 
