@@ -2,21 +2,14 @@ import CloudKit
 import SwiftUI
 import CoreData
 
-private struct ShareSheetItem: Identifiable {
-    let share: CKShare
-    let container: CKContainer
-    var id: String { share.recordID.recordName }
-}
-
 struct DetailView: View {
     let list: ShoppingList
     @Environment(PersistenceController.self) private var persistence
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab = 0
 
     @State private var sharingStatus: CKSharingService.SharingStatus = .notShared
     @State private var isLoadingSharingStatus = true
-    @State private var isPreparingShare = false
-    @State private var shareSheetItem: ShareSheetItem?
     @State private var sharingErrorMessage: String?
 
     private var sharingService: CKSharingService {
@@ -55,12 +48,9 @@ struct DetailView: View {
         .task {
             await refreshSharingStatus()
         }
-        .sheet(item: $shareSheetItem, onDismiss: {
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
             Task { await refreshSharingStatus() }
-        }) { item in
-            CloudSharingView(share: item.share, container: item.container) {
-                Task { await refreshSharingStatus() }
-            }
         }
         .alert(
             "共有エラー",
@@ -77,23 +67,64 @@ struct DetailView: View {
 
     @ViewBuilder
     private var shareButton: some View {
-        if isLoadingSharingStatus || isPreparingShare {
+        if isLoadingSharingStatus {
             ProgressView()
         } else {
-            Button {
-                Task { await presentSharingSheet() }
-            } label: {
-                switch sharingStatus {
-                case .notShared:
+            switch sharingStatus {
+            case .notShared:
+                ShareLink(
+                    item: makeShareable(existingShare: nil),
+                    preview: SharePreview(list.name ?? "お買い物リスト")
+                ) {
                     Label("共有を開始", systemImage: "person.badge.plus")
-                case .owner:
-                    Label("共有を管理", systemImage: "person.2.fill")
-                case .participant:
-                    Label("共有情報", systemImage: "person.2")
+                }
+                .accessibilityIdentifier("share-list-button")
+            case .owner(let share, let container), .participant(let share, let container):
+                CollaborationView(share: share, container: container)
+                    .frame(width: 28, height: 28)
+                    .accessibilityIdentifier("collaboration-button")
+            }
+        }
+    }
+
+    private func makeShareable(existingShare: CKShare?) -> ShareableShoppingList {
+        // prepareShareはシステムがメインスレッドを塞いだまま呼ぶことがあるため、
+        // MainActorに依存する値はここで取り出し、closure内ではawaitでメインへ戻らない。
+        let container = persistence.container
+        let privateStore = persistence.privatePersistentStore
+        let list = list
+        let title = list.name ?? "お買い物リスト"
+        return ShareableShoppingList(
+            title: title,
+            existingShare: existingShare,
+            container: CKContainer(identifier: CloudKitConfiguration.containerIdentifier),
+            prepareShare: {
+                do {
+                    print("[Share] prepare開始 objectID=\(list.objectID)")
+                    if let existing = try container.fetchShares(matching: [list.objectID])[list.objectID] {
+                        print("[Share] 既存の共有を返す url=\(existing.url?.absoluteString ?? "nil")")
+                        return existing
+                    }
+                    print("[Share] 新規共有を作成中…")
+                    let (_, share, _) = try await container.share([list], to: nil)
+                    print("[Share] 作成完了 url=\(share.url?.absoluteString ?? "nil")")
+                    share[CKShare.SystemFieldKey.title] = title
+                    if let privateStore {
+                        do {
+                            _ = try await container.persistUpdatedShare(share, in: privateStore)
+                            print("[Share] タイトル保存完了")
+                        } catch {
+                            // タイトルが保存できなくても共有自体は成立しているので続行する
+                            print("[Share] タイトル保存失敗(続行): \(error)")
+                        }
+                    }
+                    return share
+                } catch {
+                    print("[Share] 失敗: \(error)")
+                    throw error
                 }
             }
-            .accessibilityIdentifier("share-list-button")
-        }
+        )
     }
 
     private func refreshSharingStatus() async {
@@ -102,17 +133,6 @@ struct DetailView: View {
             sharingStatus = try sharingService.sharingStatus(for: list)
         } catch {
             sharingErrorMessage = "共有状態の取得に失敗しました。\n\(error.localizedDescription)"
-        }
-    }
-
-    private func presentSharingSheet() async {
-        isPreparingShare = true
-        defer { isPreparingShare = false }
-        do {
-            let (share, container) = try await sharingService.fetchOrCreateShare(for: list)
-            shareSheetItem = ShareSheetItem(share: share, container: container)
-        } catch {
-            sharingErrorMessage = "共有の準備に失敗しました。\n\(error.localizedDescription)"
         }
     }
 }
