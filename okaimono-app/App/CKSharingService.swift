@@ -9,14 +9,12 @@ nonisolated final class CKSharingService: @unchecked Sendable {
     )
 
     private let container: NSPersistentCloudKitContainer
-    private let privatePersistentStore: NSPersistentStore?
     private let sharedPersistentStore: NSPersistentStore?
     private let cloudKitContainer: CKContainer
 
     @MainActor
     init(persistence: PersistenceController) {
         container = persistence.container
-        privatePersistentStore = persistence.privatePersistentStore
         sharedPersistentStore = persistence.sharedPersistentStore
         cloudKitContainer = CKContainer(identifier: CloudKitConfiguration.containerIdentifier)
     }
@@ -50,16 +48,10 @@ nonisolated final class CKSharingService: @unchecked Sendable {
         }
 
         let share = try await createShare(for: objectID)
+        // タイトルを載せたshareをそのまま返し、サーバーへの保存はシステム共有UIに任せる。
+        // ここで persistUpdatedShare すると同じzone shareへの二重書き込みになり、
+        // システム側の保存と衝突して serverRecordChanged (client oplock error) を招く。
         share[CKShare.SystemFieldKey.title] = title
-
-        if let privatePersistentStore {
-            do {
-                _ = try await container.persistUpdatedShare(share, in: privatePersistentStore)
-            } catch {
-                // タイトルが保存できなくても共有自体は成立しているので続行する。
-                Self.logger.error("共有タイトルの保存に失敗しました: \(error.localizedDescription, privacy: .public)")
-            }
-        }
 
         return (share, cloudKitContainer)
     }
@@ -74,6 +66,7 @@ nonisolated final class CKSharingService: @unchecked Sendable {
                     }
                     self.container.share([list], to: nil) { _, share, _, error in
                         if let error {
+                            Self.logger.error("共有の作成に失敗しました: \(error.localizedDescription, privacy: .public)")
                             continuation.resume(throwing: error)
                         } else if let share {
                             continuation.resume(returning: share)
@@ -97,20 +90,30 @@ nonisolated final class CKSharingService: @unchecked Sendable {
     }
 
     /// システム共有UIが更新したCKShareをCore Dataのローカルメタデータへ反映する。
-    func persistUpdatedShare(_ share: CKShare, in store: NSPersistentStore) async throws {
-        _ = try await container.persistUpdatedShare(share, in: store)
+    /// 戻り値は changeTag が最新化されたCKShare。以降はこちらを使わないと、
+    /// 次の保存でまた楽観ロック衝突を起こす。
+    @discardableResult
+    func persistUpdatedShare(
+        _ share: CKShare,
+        in store: NSPersistentStore
+    ) async throws -> CKShare {
+        try await container.persistUpdatedShare(share, in: store)
     }
-    
+
     func sharingStatus(for list: ShoppingList) throws -> SharingStatus {
         let existingShares = try container.fetchShares(matching: [list.objectID])
         guard let share = existingShares[list.objectID] else {
             return .notShared
         }
-        let container = cloudKitContainer
+        return status(for: share)
+    }
+
+    /// 手元にあるCKShareから、自分がオーナーか参加者かを判定する。
+    func status(for share: CKShare) -> SharingStatus {
         if share.currentUserParticipant?.role == .owner {
-            return .owner(share: share, container: container)
+            return .owner(share: share, container: cloudKitContainer)
         } else {
-            return .participant(share: share, container: container)
+            return .participant(share: share, container: cloudKitContainer)
         }
     }
 }
