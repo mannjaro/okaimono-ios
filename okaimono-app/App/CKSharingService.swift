@@ -8,7 +8,7 @@ final class CKSharingService {
         self.persistence = persistence
     }
     
-    enum SharingError: Error {
+    enum SharingError: Error, Equatable {
         case notSavedObject
         case reSharingNotAllowed
     }
