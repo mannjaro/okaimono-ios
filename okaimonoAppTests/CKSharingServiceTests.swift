@@ -21,7 +21,10 @@ struct CKSharingServiceTests {
         
         // Act & Assert
         await #expect(throws: CKSharingService.SharingError.notSavedObject) {
-            try await service.fetchOrCreateShare(for: list)
+            try await service.fetchOrCreateShare(
+                for: list.objectID,
+                title: list.name ?? "お買い物リスト"
+            )
         }
     }
 
@@ -42,7 +45,10 @@ struct CKSharingServiceTests {
 
         // Act & Assert
         await #expect(throws: CKSharingService.SharingError.reSharingNotAllowed) {
-            try await service.fetchOrCreateShare(for: list)
+            try await service.fetchOrCreateShare(
+                for: list.objectID,
+                title: list.name ?? "お買い物リスト"
+            )
         }
     }
 
