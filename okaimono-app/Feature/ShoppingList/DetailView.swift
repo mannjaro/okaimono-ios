@@ -11,6 +11,7 @@ struct DetailView: View {
     @State private var sharingStatus: CKSharingService.SharingStatus = .notShared
     @State private var isLoadingSharingStatus = true
     @State private var sharingErrorMessage: String?
+    @State private var sharingUIObserver: CKSystemSharingUIObserver?
 
     private var sharingService: CKSharingService {
         CKSharingService(persistence: persistence)
@@ -46,6 +47,7 @@ struct DetailView: View {
             }
         }
         .task {
+            configureSharingUIObserver()
             await refreshSharingStatus()
         }
         .onChange(of: scenePhase) { _, phase in
@@ -73,7 +75,7 @@ struct DetailView: View {
             switch sharingStatus {
             case .notShared:
                 ShareLink(
-                    item: makeShareable(existingShare: nil),
+                    item: makeShareable(),
                     preview: SharePreview(list.name ?? "お買い物リスト")
                 ) {
                     Label("共有を開始", systemImage: "person.badge.plus")
@@ -87,44 +89,62 @@ struct DetailView: View {
         }
     }
 
-    private func makeShareable(existingShare: CKShare?) -> ShareableShoppingList {
+    private func makeShareable() -> ShareableShoppingList {
         // prepareShareはシステムがメインスレッドを塞いだまま呼ぶことがあるため、
-        // MainActorに依存する値はここで取り出し、closure内ではawaitでメインへ戻らない。
-        let container = persistence.container
-        let privateStore = persistence.privatePersistentStore
-        let list = list
+        // MainActorに依存するサービス生成はここで済ませ、closure内ではawaitでメインへ戻らない。
+        let service = sharingService
+        let objectID = list.objectID
         let title = list.name ?? "お買い物リスト"
         return ShareableShoppingList(
-            title: title,
-            existingShare: existingShare,
             container: CKContainer(identifier: CloudKitConfiguration.containerIdentifier),
             prepareShare: {
-                do {
-                    print("[Share] prepare開始 objectID=\(list.objectID)")
-                    if let existing = try container.fetchShares(matching: [list.objectID])[list.objectID] {
-                        print("[Share] 既存の共有を返す url=\(existing.url?.absoluteString ?? "nil")")
-                        return existing
-                    }
-                    print("[Share] 新規共有を作成中…")
-                    let (_, share, _) = try await container.share([list], to: nil)
-                    print("[Share] 作成完了 url=\(share.url?.absoluteString ?? "nil")")
-                    share[CKShare.SystemFieldKey.title] = title
-                    if let privateStore {
-                        do {
-                            _ = try await container.persistUpdatedShare(share, in: privateStore)
-                            print("[Share] タイトル保存完了")
-                        } catch {
-                            // タイトルが保存できなくても共有自体は成立しているので続行する
-                            print("[Share] タイトル保存失敗(続行): \(error)")
-                        }
-                    }
-                    return share
-                } catch {
-                    print("[Share] 失敗: \(error)")
-                    throw error
+                try await service.fetchOrCreateShare(for: objectID, title: title).share
+            },
+            didPrepareShare: {
+                // prepareShareが戻るまでメインスレッドが塞がれる場合があるため、
+                // 完了を待たずにMainActorへ更新を予約する。
+                Task { @MainActor in
+                    await refreshSharingStatus()
                 }
             }
         )
+    }
+
+    private func configureSharingUIObserver() {
+        guard sharingUIObserver == nil else { return }
+
+        let observer = CKSystemSharingUIObserver(
+            container: CKContainer(identifier: CloudKitConfiguration.containerIdentifier)
+        )
+        observer.systemSharingUIDidSaveShareBlock = { _, result in
+            Task { @MainActor in
+                switch result {
+                case .success(let share):
+                    do {
+                        guard let store = list.objectID.persistentStore else {
+                            throw CKSharingService.SharingError.notSavedObject
+                        }
+                        try await sharingService.persistUpdatedShare(share, in: store)
+                        await refreshSharingStatus()
+                    } catch {
+                        sharingErrorMessage = "共有設定の保存に失敗しました。\n\(error.localizedDescription)"
+                    }
+                case .failure(let error):
+                    sharingErrorMessage = "共有設定の保存に失敗しました。\n\(error.localizedDescription)"
+                }
+            }
+        }
+        observer.systemSharingUIDidStopSharingBlock = { _, result in
+            Task { @MainActor in
+                switch result {
+                case .success:
+                    await refreshSharingStatus()
+                case .failure(let error):
+                    sharingErrorMessage = "共有の停止に失敗しました。\n\(error.localizedDescription)"
+                }
+            }
+        }
+        sharingUIObserver = observer
     }
 
     private func refreshSharingStatus() async {

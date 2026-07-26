@@ -1,16 +1,30 @@
 import CoreData
 import CloudKit
+import OSLog
 
-final class CKSharingService {
-    private let persistence: PersistenceController
-    
+nonisolated final class CKSharingService: @unchecked Sendable {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "okaimono-app",
+        category: "CloudKitSharing"
+    )
+
+    private let container: NSPersistentCloudKitContainer
+    private let privatePersistentStore: NSPersistentStore?
+    private let sharedPersistentStore: NSPersistentStore?
+    private let cloudKitContainer: CKContainer
+
+    @MainActor
     init(persistence: PersistenceController) {
-        self.persistence = persistence
+        container = persistence.container
+        privatePersistentStore = persistence.privatePersistentStore
+        sharedPersistentStore = persistence.sharedPersistentStore
+        cloudKitContainer = CKContainer(identifier: CloudKitConfiguration.containerIdentifier)
     }
     
     enum SharingError: Error, Equatable {
         case notSavedObject
         case reSharingNotAllowed
+        case missingShareResult
     }
     
     enum SharingStatus {
@@ -19,44 +33,80 @@ final class CKSharingService {
         case participant(share: CKShare, container: CKContainer)
     }
     
-    private var ckContainer: CKContainer {
-        CKContainer(identifier: CloudKitConfiguration.containerIdentifier)
-    }
-    
     /// リストの共有を作る、もしくは既にあればそれを返す
-    func fetchOrCreateShare(for list: ShoppingList) async throws -> (share: CKShare, container: CKContainer) {
-        guard !list.objectID.isTemporaryID else {
+    func fetchOrCreateShare(
+        for objectID: NSManagedObjectID,
+        title: String
+    ) async throws -> (share: CKShare, container: CKContainer) {
+        guard !objectID.isTemporaryID else {
             throw SharingError.notSavedObject
         }
-        guard list.objectID.persistentStore != persistence.sharedPersistentStore else {
+        guard objectID.persistentStore != sharedPersistentStore else {
             throw SharingError.reSharingNotAllowed
         }
 
-        let existingShares = try persistence.container.fetchShares(matching: [list.objectID])
-        guard let share = existingShares[list.objectID] else {
-            let (_, share, container) = try await persistence.container.share([list], to: nil)
-            share[CKShare.SystemFieldKey.title] = list.name ?? "お買い物リスト"
-            return (share, container)
+        if let share = try container.fetchShares(matching: [objectID])[objectID] {
+            return (share, cloudKitContainer)
         }
-        share[CKShare.SystemFieldKey.title] = list.name ?? "お買い物リスト"
-        let container = ckContainer
-        return (share, container)
+
+        let share = try await createShare(for: objectID)
+        share[CKShare.SystemFieldKey.title] = title
+
+        if let privatePersistentStore {
+            do {
+                _ = try await container.persistUpdatedShare(share, in: privatePersistentStore)
+            } catch {
+                // タイトルが保存できなくても共有自体は成立しているので続行する。
+                Self.logger.error("共有タイトルの保存に失敗しました: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+
+        return (share, cloudKitContainer)
+    }
+
+    private func createShare(for objectID: NSManagedObjectID) async throws -> CKShare {
+        try await withCheckedThrowingContinuation { continuation in
+            container.performBackgroundTask { context in
+                do {
+                    guard let list = try context.existingObject(with: objectID) as? ShoppingList else {
+                        continuation.resume(throwing: SharingError.notSavedObject)
+                        return
+                    }
+                    self.container.share([list], to: nil) { _, share, _, error in
+                        if let error {
+                            continuation.resume(throwing: error)
+                        } else if let share {
+                            continuation.resume(returning: share)
+                        } else {
+                            continuation.resume(throwing: SharingError.missingShareResult)
+                        }
+                    }
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
     }
 
     func canEdit(_ object: NSManagedObject) -> Bool {
-        return persistence.container.canUpdateRecord(forManagedObjectWith: object.objectID)
+        return container.canUpdateRecord(forManagedObjectWith: object.objectID)
     }
     
     func canDelete(_ object: NSManagedObject) -> Bool {
-        return persistence.container.canDeleteRecord(forManagedObjectWith: object.objectID)
+        return container.canDeleteRecord(forManagedObjectWith: object.objectID)
+    }
+
+    /// システム共有UIが更新したCKShareをCore Dataのローカルメタデータへ反映する。
+    func persistUpdatedShare(_ share: CKShare, in store: NSPersistentStore) async throws {
+        _ = try await container.persistUpdatedShare(share, in: store)
     }
     
     func sharingStatus(for list: ShoppingList) throws -> SharingStatus {
-        let existingShares = try persistence.container.fetchShares(matching: [list.objectID])
+        let existingShares = try container.fetchShares(matching: [list.objectID])
         guard let share = existingShares[list.objectID] else {
             return .notShared
         }
-        let container = ckContainer
+        let container = cloudKitContainer
         if share.currentUserParticipant?.role == .owner {
             return .owner(share: share, container: container)
         } else {
